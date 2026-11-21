@@ -29,6 +29,10 @@ Mục tiêu: thay hình khối tạm của starter bằng đồ họa mang hồn
 - Ngẫu nhiên trang trí (sóng, bọt, khói) dùng PRNG riêng có seed trong client (vd. mulberry32),
   không bao giờ ảnh hưởng `Streams` của sim. `Math.random` chỉ được dùng cho hiệu ứng thuần thị giác.
 - Giữ lại các lớp "debug" (vòng interact/catch radius) nhưng làm mờ, bật/tắt bằng phím `H` nếu muốn.
+- **Tỉ lệ và khung nhìn chỉnh ở một chỗ**: `ART.size` (kích thước người/cá/nhà bè theo đơn vị thế giới,
+  Út Sen là thước chuẩn) và `ART.view` (camera gather: `rows` = số đơn vị thấy theo chiều dọc; nhỏ hơn = to hơn).
+  Muốn "to hơn" thì phóng camera, **không** phóng riêng một vật làm lệch tỉ lệ. Cảnh xa (bờ, nhà sàn) vẽ theo
+  cỡ cố định `fs` để giữ chiều sâu; luôn có bản đồ nhỏ (`artMinimap`) vì camera không thấy cả sông.
 
 ## 2. Art bible
 
@@ -51,9 +55,16 @@ tầm nhìn (lớp phủ alpha tăng theo `d`). Đặt tia nắng xiên mờ g�
 - **Gather – mặt cắt nhìn ngang**: trục `x` sang phải, `d` xuống. Lớp từ xa đến gần (parallax nhẹ theo
   `player.pos[0]`): trời hồng → bờ dừa nước + nhà sàn xa → ghe/bến (dock) → mặt nước gợn → lòng sông
   bùn, rễ, bèo. Bông điên điển/bông súng mọc ở mặt nước (`d≈0`); cá bơi dưới sâu.
-- **Quán – từ trên xuống**: sàn ván bè (vẽ các tấm ván song song, khe tối), mép bè có lu nước, phao,
-  chậu bông; nước nâu viền quanh. Bếp (`stoves`) là bếp lò đất/cà ràng có đốm lửa + khói; bàn (`tables`)
-  là bàn gỗ thấp kèm ghế đẩu nhựa. Dây đèn vàng giăng theo chu vi, lắc nhẹ.
+- **Quán – góc nhìn chéo 3/4** (luật vẫn là `[x, z]` nhìn từ trên; chỉ cách *vẽ* là chéo, theo ảnh mẫu nhóm chọn):
+  chiếu bằng `qView(...).P(x, z, cao)`; vật sắp theo `z` giảm dần (xa vẽ trước). Sàn ván bè, mặt trước gỗ súc + phao,
+  vách gỗ sau bếp, lan can tre (chừa lối ở mặt trước), cột cao treo dây đèn vàng võng. Bếp cà ràng trên bệ gạch
+  (miệng lò có lửa + củi), quầy đá phía trước (ống đũa, chồng dĩa); bàn ván dọc + ghế đẩu gỗ, khách ngồi phía sau
+  bàn quay mặt ra. Bong bóng gọi món có tên ngắn + hình món + thanh kiên nhẫn xanh→vàng→đỏ.
+- **HUD bảng gỗ dùng chung hai buổi**: cột chỉ số trên-trái (`hudStats`), thanh Kho/Giỏ có icon dưới-trái (`hudKho`,
+  icon từ `drawKindIcon`), ô Trên tay/Thao tác dưới-phải có gợi ý phím (`hudHand`). Gợi ý chỉ để hiển thị, luật do máy chủ quyết.
+  Phím H bật nhật ký sự kiện của starter.
+- **Nối ngày → đêm khi chơi thử**: `python tools/choi_ngay_dem.py` (dùng file kho, không phải `--mode day`);
+  trình duyệt hiện màn hoàng hôn (`transitionDraw`) khi `snap.mode` đổi gather → quan.
 
 ### Nhân vật Út Sen
 - Áo bà ba (trắng ngà `#f2ece0` hoặc nâu `#7a4a2a`), quần đen; **khăn rằn ca rô đen‑trắng** quàng cổ
@@ -75,9 +86,10 @@ tầm nhìn (lớp phủ alpha tăng theo `d`). Đặt tia nắng xiên mờ g�
 ## 3. Animation mượt
 - Vẽ theo `requestAnimationFrame`; mọi chuyển động trang trí dùng thời gian thực `performance.now()`
   (không đếm frame) để độc lập FPS.
-- **Nội suy vị trí**: giữ `prevSnap` và `snap` cùng thời điểm nhận; vẽ vị trí `lerp(prev, cur, α)` với
-  `α = clamp((now - tRecv) / pollInterval, 0, 1)`. Nếu nhảy xa bất thường (restart, `tick` giảm) → cắt
-  thẳng, không nội suy. Góc quay nội suy theo đường ngắn nhất.
+- **Làm mượt vị trí**: dùng `smoothBegin` / `smoothPos(key, pos)` / `smoothAngle(key, rad)` có sẵn trong
+  khối ART — vị trí vẽ đuổi theo snapshot theo hàm mũ (`k = 1 - exp(-dt·20)`), chịu được poll không đều.
+  Nhảy xa > 3 đơn vị hoặc `tick` giảm (restart) → cắt thẳng. Góc quay theo đường ngắn nhất.
+  Key có tiền tố mode (`gather:fish:F1`). Chỉ dùng cho hình; HUD và số liệu vẫn đọc snapshot gốc.
 - Hiệu ứng nền: mặt nước gợn (sin nhiều tần số), dừa nước đung đưa, đèn dây lắc, khói bay lên và tan,
   ánh lửa nhấp nháy. Biên độ nhỏ, không gây rối mắt.
 - Sự kiện (`snap.events`) → hiệu ứng ngắn 200–600 ms: nhặt bông (lá rung + chữ "+1"), bắt cá (vòng nước
