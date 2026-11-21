@@ -21,6 +21,41 @@ PYTHONPATH=tests:. python3 -m unittest discover -s tests -v        # smoke test
 python3 -m chonoi.live --mode gather                                # chơi thử trên trình duyệt (tùy chọn)
 ```
 
+Windows: thêm `PYTHONIOENCODING=utf-8` trước lệnh live. Nếu máy chỉ có `python` thì cần một lệnh `python3` trên PATH, vì `headless_cmd` của test gọi `python3`.
+
+## Điều khiển
+
+| Phím | Buổi sáng (gather, lặn) | Buổi tối (quán) |
+|---|---|---|
+| **W A S D** / mũi tên | Bơi trái/phải, lặn xuống (S) / nổi lên (W) | Đi trên nhà bè |
+| **E** | Hái bông ở nút trên mặt nước; vào bến để **cập bến** (kết thúc buổi, ghi kho) | Nấu ở bếp (lấy đơn cũ nhất), bưng món từ bếp, phục vụ đúng bàn |
+| **Space** | Bắt cá khi đang lặn (có hồi chiêu) | — |
+| **R** | Chơi lại từ đầu (cùng seed) | như bên trái |
+| **H** | Bật/tắt nhật ký sự kiện | như bên trái |
+
+Mẹo: dưới nước tốn oxy. Hết oxy thì bị ngạt và mất Máu, hết Máu thì ngất và kho rỗng. Giỏ có sức chứa giới hạn, đầy thì không hái hay bắt thêm được.
+
+## Cách tính điểm
+
+```
+score = earned + 100 × floor(reputation)
+```
+
+- `earned`: tổng tiền thu cả lượt, gồm tiền món (giá theo `tuning.menu`) và boa. Boa = `floor(giá × tip_rate)` nếu lúc phục vụ khách còn đủ kiên nhẫn (`tip_min_patience_ratio`), ngược lại boa 0.
+- `reputation`: bắt đầu từ 3.0 (`reputation_initial`). Cộng 0.2 (`tip_reputation`) mỗi lần khách trả tiền có boa. Trừ 0.5 (`left_reputation_delta`) mỗi khách hết kiên nhẫn bỏ về; khách rời lúc hết ca thì không bị trừ. Luôn kẹp trong [0, 5].
+- Hệ số 100 lấy từ `tuning.score.reputation_multiplier` trong [`game.contract.json`](game.contract.json). Buổi sáng chưa có tiền nên điểm chỉ đến từ uy tín.
+- Ví dụ: `earned = 72`, `reputation = 3.2` → `72 + 100 × 3 = 372`.
+
+## Test
+
+```bash
+PYTHONPATH=tests:. python3 -m unittest discover -s tests -v                                       # toàn bộ test (1 lệnh)
+python3 tools/kiem_tat_dinh.py --mode gather --seed 1 --ticks 600 --inputs docs/proof/phase-1/g/day-inputs.json   # kiểm tất định
+git config core.hooksPath .githooks                                                              # bật hook test trước khi push
+```
+
+Hợp đồng kho, snapshot cho UI và danh sách sự kiện: [`docs/contracts/README.md`](docs/contracts/README.md).
+
 Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headless --mode gather|quan …`) để được chạy và chấm tự động. **Công nghệ không ràng buộc**: khung Python trong `chonoi/` chỉ là gợi ý, chi tiết ở [`docs/STARTER.md`](docs/STARTER.md).
 
 ## Tự do sáng tạo

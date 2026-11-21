@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Hook nhóm: chạy test + kiểm tất định trước khi push (skill .agents/skills/kiem-tat-dinh).
+# Bật: git config core.hooksPath .githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+export PYTHONIOENCODING=utf-8
+PY=python3
+if ! "$PY" -c "" >/dev/null 2>&1; then PY=python; fi
+
+echo "[pre-push] chạy test..."
+SEP=$("$PY" -c 'import os;print(os.pathsep)')   # ":" trên macOS/Linux, ";" trên Windows
+PYTHONPATH="tests${SEP}." "$PY" -m unittest discover -s tests >/dev/null 2>&1 \
+  || { echo "[pre-push] TEST ĐỎ — không push. Chạy: PYTHONPATH=tests:. python3 -m unittest discover -s tests -v"; exit 1; }
+
+echo "[pre-push] kiểm tất định..."
+"$PY" tools/kiem_tat_dinh.py --mode gather --seed 1 --ticks 600 --inputs docs/proof/phase-1/g/day-inputs.json >/dev/null \
+  || { echo "[pre-push] gather KHÔNG tất định"; exit 1; }
+"$PY" tools/kiem_tat_dinh.py --mode quan --seed 3 --ticks 3000 --inventory docs/proof/phase-1/g/day-kho.json >/dev/null \
+  || { echo "[pre-push] quan KHÔNG tất định"; exit 1; }
+echo "[pre-push] OK"
