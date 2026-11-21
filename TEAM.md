@@ -8,7 +8,7 @@
 | | TADIZB | `sim/quan` (cặp với Duc1306), đồ họa gather | | Duc1306 |
 | | congvt | `client/ui` + `sim/day` | QA lead (verification P1–P3) | Shirou191 |
 | | Shirou191 | `qa` (test mã thoát, hook pre-push, kiểm tất định) + `docs/contracts` | Integrator | congvt |
-| Hà Văn Khánh Đạt (2A202604074) | hadatttt | Release + tài liệu (TEAM, retro, CHANGELOG) | PO + Scrum/Release | Shirou191 |
+| Hà Văn Khánh Đạt (2A202604074) | hadatttt | `sim/quan` mở rộng Cháy món (`burn`: `contract.py`, `quan.py`, `test_ext_burn.py`, UI `dish_burnt`) + Release, tài liệu (TEAM, retro, CHANGELOG) | PO + Scrum/Release | Shirou191 |
 
 **Vai quy trình:** PO (đầu mối hỏi giảng viên, giữ `docs/clarify.md`) · Integrator (giữ `docs/contracts/`, gắn tag) · QA lead · Scrum/Release. Có thể kiêm.
 
