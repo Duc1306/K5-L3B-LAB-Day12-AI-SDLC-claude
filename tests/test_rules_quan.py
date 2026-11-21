@@ -1,6 +1,7 @@
 """Test luật Quán (PRD-0, Test Contract mục D và F "Quán"), hộp đen qua headless_cmd.
 
-Preset: bếp B1 [2, 8], bàn T1 [9, 2], interact_radius 1.5, khách đầu ở phase_tick 120, rồi mỗi 900 tick.
+Preset v1.1: bếp B1 [2, 8], B2 [5, 8]; bàn T1 [9, 2], T2 [13, 2], T3 [9, 6], T4 [13, 6]; interact_radius 1.5,
+khách đầu ở phase_tick 120, rồi mỗi 900 tick. Luật Phase 2 riêng ở test_rules_p2_quan.py.
 """
 
 import json
@@ -79,9 +80,10 @@ class Customers(unittest.TestCase):
         self.assertEqual(ev(rows, "no_dish"), [(120, {}), (120 + interval, {})])
 
     def test_het_ban_thi_bo_luot(self):
-        interval = int(Q["customer_interval_s"] * 60)
-        rows = run_quan({"stock": {"ca_loc": 5}}, ticks=120 + interval)
-        self.assertEqual(len(events(rows, "customer_arrived")), 1)
+        # v1.1 có 4 bàn: lấp kín mọi bàn bằng fixture, lượt khách tick 120 phải bị bỏ (không no_dish)
+        seated = [dict(C1_RESERVED, id=f"C{i}", table_id=tb["id"]) for i, tb in enumerate(Q["tables"], 1)]
+        rows = run_quan({"stock": {"ca_loc": len(seated) + 1}, "customers": seated}, ticks=120)
+        self.assertEqual(events(rows, "customer_arrived"), [])
         self.assertEqual(events(rows, "no_dish"), [])
 
     def test_chon_mon_trong_cac_mon_du_nguyen_lieu(self):
@@ -267,7 +269,7 @@ class FixtureContradictions(unittest.TestCase):
             {"customers": [dict(C1_RESERVED, dish_id="pho")]},  # món ngoài phạm vi
             {"customers": [dict(C1_RESERVED, order_status="unfulfillable", reserved={"ca_loc": 1})],
              "stock": {"ca_loc": 1}},  # unfulfillable phải giữ rỗng
-            {"stoves": [{"id": "B2"}]},  # bếp không tồn tại
+            {"stoves": [{"id": "B9"}]},  # bếp không tồn tại (v1.1 đã có B2 thật)
             {"reputation": 9},
         ]
         for block in bad:
