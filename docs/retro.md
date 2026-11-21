@@ -42,4 +42,6 @@
 - congvt và TADIZB viết `docs/members/<handle>.md` (đã có Duc1306, Shirou191, hadatttt). Người nhận: từng người.
 - Điền tên thật / vai quy trình còn trống trong `TEAM.md`. Người nhận: hadatttt (PO).
 - Thêm `.gitattributes`. Người nhận: congvt.
+
+**Cập nhật sau P4** (*cong2235 ghi*): `.gitattributes` đã thêm (`e19b641`); `docs/members/cong2235.md` và dòng của cong2235 trong `TEAM.md` đã điền (`9999d36`). Còn lại: phản tư TADIZB, tên thật TADIZB/Shirou191 trong `TEAM.md`, cache lớp nền để đạt 60 FPS.
 - Cache lớp nền và cây theo pha để cảnh lặn đạt 60 FPS. Người nhận: người làm đồ họa (congvt/TADIZB).
