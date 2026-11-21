@@ -1,28 +1,35 @@
-# Hợp đồng tích hợp (contract v1.0, Phase 1)
+# Hợp đồng tích hợp (contract v1.2, Phase 3; lịch sử v1.0 → v1.2 ở mục 5)
 
 > Nguồn gốc: PRD-0 mục D, E, G ([docs/plan/cho-noi-lab-phase-1.md](../plan/cho-noi-lab-phase-1.md)) và code đang chạy ở tag `phase-1`.
 > File này **ghi lại** những gì code đang làm, không đổi hành vi. Khi muốn đổi: báo cả nhóm, ghi ADR ở `docs/adr/` và cập nhật file này **trong cùng commit** với code.
 
 Ai giữ: Integrator. Ai bị ảnh hưởng khi đổi: `sim/gather` (ghi kho), `sim/quan` (đọc kho), `client/ui` (đọc snapshot/sự kiện), test hộp đen.
 
-## 1. File kho (mục G)
+## 1. File kho (mục G) — v1.2: kho CÁ THỂ (breaking, xem [ADR-0001](../adr/0001-kho-ca-the-v12.md))
 
 Bàn giao giữa buổi sáng và buổi tối. Gather ghi một lần khi có `gather_end`, quán đọc ở tick 0.
 
 ```json
-{"items": {"bong_sung": 2, "ca_loc": 1}}
+{"items":[{"id":"I1","kind":"ca_linh","fresh":100},{"id":"I2","kind":"ca_loc","fresh":97.5}]}
 ```
 
 | Quy tắc | Chi tiết | Code |
 |---|---|---|
-| Khóa gốc | Chỉ đúng một khóa là `items`. Có khóa khác thì thoát mã 2. | `chonoi/inventory.py` `read_inventory` |
-| Id nguyên liệu (v1.0) | `ca_loc`, `ca_linh`, `bong_dien_dien`, `bong_sung`. Id lạ thì mã 2. | `KINDS_P1` |
-| Số lượng | Số nguyên ≥ 0, không nhận `bool`. Âm hoặc sai kiểu thì mã 2. Mục bằng 0 bị bỏ khi ghi. | `validate_items` |
-| Byte-ổn-định | Khóa sắp theo id, JSON gọn `(",", ":")`, UTF-8, kết thúc bằng `\n`. Ghi qua file tạm rồi `os.replace`. | `write_inventory` |
-| Khi nào ghi | `docked`/`time` thì ghi các món còn trong giỏ. `fainted` thì ghi `{"items":{}}`. Chạm `--ticks` trước khi buổi sáng kết thúc thì **không** ghi, giữ nguyên file đích. | `runner.Session.write_inventory_if_done` |
-| Quán đọc | Dùng `--inventory <file>` (chỉ với `--mode quan`). Khai cùng lúc `quan.stock` trong scenario thì mã 2. `stock` ở snapshot quán = `items`, **gồm cả phần khách giữ chỗ**. | `headless.py`, `sim/quan.py` |
+| Khóa gốc | Chỉ đúng một khóa `items`, giá trị là **mảng** cá thể. Kho rỗng `{"items":[]}`. | `chonoi/inventory.py` `read_inventory` |
+| Cá thể | Đúng 3 khóa `{id, kind, fresh}`. `id` chuỗi khác rỗng, duy nhất. `kind` ∈ 6 nguyên liệu. `fresh` số hữu hạn trong [0, 100]. Sai → mã 2. | `validate_items` |
+| Chọn schema | Theo `contract_version`: v1.2 chỉ nhận mảng cá thể, **file kho đếm cũ `{"items":{kind:n}}` → mã 2**. | `uses_item_schema` |
+| Id | `I1`, `I2`… cấp theo thứ tự vào giỏ, tăng xuyên pha và Ngày (cả khi cá thể cũ đã dùng/bỏ). | `GatherSim(item_ids=)`, `DaySim.item_ids` |
+| Byte-ổn-định | Sắp theo id, JSON gọn `(",", ":")`, UTF-8, `
+` cuối. `fresh` ghi nguyên nếu chẵn, không thì float đủ chính xác để đọc lại (giữ nhánh ở ngưỡng 30). File tạm cùng thư mục rồi `os.replace`. | `write_inventory`, `sim/fresh.py` |
+| Khi nào ghi | `docked`/`time`: các cá thể còn trong giỏ (kể cả hàng ươn). `fainted`: `{"items":[]}`. Chạm `--ticks` trước `gather_end`: **không** ghi. | `runner.Session.write_inventory_if_done` |
+| Quán đọc | `--inventory <file>` (chỉ `--mode quan`); khai cùng `quan.stock` → mã 2. Quán nhận nguyên số lượng, id, độ tươi, kể cả hàng ươn. `stock` ở snapshot = mảng cá thể sắp theo id, **gồm cả phần khách giữ**. | `headless.py`, `sim/quan.py` |
 
-File mẫu hợp lệ: [`inventory.sample.json`](inventory.sample.json). Lệnh nối 2 tiến trình (smoke):
+**Độ tươi** (`tuning.freshness`): mới lấy `100`, hao từ bước sau; giỏ −0.5/s, kho quán −0.25/s (cả hàng đang giữ), kẹp 0; `fresh < 30` là ươn (vẫn chiếm ô, không nấu), phát `spoiled` đúng một lần. Pause dừng hao; món chín và hàng ở Shop không hao. Tính chính xác bằng đơn vị 1/240 điểm (`chonoi/sim/fresh.py`).
+
+**Giữ chỗ theo id**: `customers[].reserved` là mảng id cá thể. Mỗi loại lấy cá thể khả dụng (chưa ươn, chưa ai giữ) tươi nhất, hòa theo id. Phần giữ có cá thể vừa ươn → nhả toàn bộ, giữ lại đúng một lần (theo `order_tick` rồi id bàn), thiếu → `unfulfillable`.
+**Giá theo tươi**: bắt đầu nấu tiêu đúng các id đang giữ, `base_price = floor(giá × trung bình fresh / 100)`; boa `floor(base × 0.2)` trên giá đã chốt.
+
+File mẫu hợp lệ: [`inventory.sample.json`](inventory.sample.json). Lệnh nối 2 tiến trình (smoke, kết quả ở [`docs/proof/phase-3/checks.md`](../proof/phase-3/checks.md)):
 
 ```bash
 python3 -m chonoi.headless --mode gather --seed 1 --ticks 600 --inputs dock-inputs.json --out g.jsonl --inventory-out kho.json
@@ -72,11 +79,13 @@ Dòng event: `{"type":"event","tick":k+1,"phase":"gather|quan","name":…,"data"
 | `dive` / `surface` | `sim/gather` | `pos` (chỉ khi đổi phía mặt nước) | UI (bong bóng, camera) |
 | `oxygen_empty` | `sim/gather` | `oxygen_ticks: 0` | UI (viền tối) |
 | `choke` | `sim/gather` | `hp` sau khi trừ | UI |
-| `faint` | `sim/gather` | `cause: "choke"`, `lost[]` (LIFO), `hp: 0` | UI, test |
-| `gather_end` | `sim/gather` | `reason` (`time`/`docked`/`fainted`), `inventory` (object theo mục 1) | runner (ghi kho), UI (màn chuyển), test |
+| `faint` | `sim/gather` | `cause` (`choke`/`monster`), `lost[]` (**v1.2: cá thể** `{id,kind,fresh}` theo LIFO), `hp: 0` | UI, test |
+| `monster_hit` | `sim/gather` | `monster_id`, `hp`, `lost[]` (cá thể, LIFO), `pos` | UI, test |
+| `spoiled` (v1.2) | `sim/gather`, `sim/quan` | `item_id`, `kind`, `location` (`hold`/`stock`); một lần khi qua ngưỡng 30, nhiều cá thể thì theo id | UI (HUD ươn), test |
+| `gather_end` | `sim/gather` | `reason` (`time`/`docked`/`fainted`), `inventory` (`{"items":[cá thể]}` theo mục 1) | runner (ghi kho), UI (màn chuyển), test |
 | `customer_arrived` | `sim/quan` | `order_id`, `table_id`, `dish_id` | UI (bong bóng gọi món, thoại) |
 | `no_dish` | `sim/quan` | `{}` (có bàn trống nhưng kho không đủ món nào) | UI |
-| `cook_started` | `sim/quan` | `stove_id`, `order_id`, `dish_id`, `items[]` (sắp theo kind), `base_price` | UI (khói bếp) |
+| `cook_started` | `sim/quan` | `stove_id`, `order_id`, `dish_id`, `items[]` (**v1.2: cá thể sắp theo kind rồi id**), `base_price` (giá đã chốt theo tươi) | UI (khói bếp) |
 | `dish_ready` / `dish_picked` | `sim/quan` | `stove_id`, `order_id`, `dish_id` | UI |
 | `served` | `sim/quan` | `order_id`, `table_id`, `dish_id`, `patience_ticks_left`, `base_price`, `tip` | UI, test |
 | `paid` | `sim/quan` | `order_id`, `table_id`, `base_price`, `tip`, `amount`, `reason` (`finished_eating`/`closing`) | UI (tiền nổi), test |
@@ -94,3 +103,5 @@ Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`
 | Ngày | Đổi gì | Lý do | Ai duyệt |
 |---|---|---|---|
 | 2026-11-21 | Viết đầy đủ hợp đồng v1.0 từ PRD-0 và code ở tag `phase-1`. Hành vi không đổi. | AC-P1-13 còn thiếu | (cả nhóm xác nhận) |
+| 2026-11-21 | v1.1 (Phase 2): số chuẩn, 3 loài cá, Cá Sấu, 2 bếp/4 bàn/6 món, `day_plan`, `shop`, `day`/Shop/pause. | TICKET-02 | Duc1306, congvt |
+| 2026-11-21 | **v1.2 (Phase 3, breaking)**: kho đếm → kho cá thể `{id,kind,fresh}`, `tuning.freshness`, event `spoiled`, giữ chỗ theo id, giá theo tươi, `lost`/`items` là cá thể. | TICKET-03, [ADR-0001](../adr/0001-kho-ca-the-v12.md) | Duc1306 (+ TADIZB) |
