@@ -1208,6 +1208,7 @@ const LINES = {
   closing: ["Dọn hàng rồi, mai {xung} ghé nghen!"],
   dish_ready: ["Chín rồi nè!", "Món xong rồi, bưng liền!"],
   no_dish: ["Hết đồ rồi, mai đi hái thêm…"],
+  dish_burnt: ["Trời đất, khét món rồi!", "Thôi rồi, để lâu quá cháy mất tiêu!"],   // mở rộng Cháy món
 };
 const QF = { lastTick: -1, seen: new Set(), primed: false, smoke: [], fx: [], talk: new Map(), cookMax: {}, smokeAcc: {}, lc: null, lctx: null, facingLeft: false };
 function custLook(id) {
@@ -1248,6 +1249,15 @@ function quanOnEvent(e, now) {
       QF.fx.push({ kind: "text", x: tb.pos[0], z: tb.pos[1], born: now, text: "khách bỏ về", color: "#ff8a80" });
     } else say("T:" + tb.id, fill(pickLine("closing")), now);
   } else if (e.name === "dish_ready") say("P", pickLine("dish_ready"), now);
+  else if (e.name === "dish_burnt") {                           // mở rộng Cháy món: khói + chữ đỏ ở bếp
+    say("P", pickLine("dish_burnt"), now);
+    const st = (snap.stoves || []).find((s) => s.id === d.stove_id);
+    if (st) {
+      QF.fx.push({ kind: "puff", x: st.pos[0], z: st.pos[1] + 0.95, born: now });
+      QF.fx.push({ kind: "text", x: st.pos[0], z: st.pos[1], born: now, color: "#ff8a80",
+        text: "cháy món!" + (d.order_status === "unfulfillable" ? " (hết đồ nấu lại)" : "") });
+    }
+  }
   else if (e.name === "no_dish" && !QF.talk.has("P")) say("P", pickLine("no_dish"), now);
 }
 // ---- món ăn nhìn từ trên (dùng cho bong bóng gọi món, bàn, khay, ô Trên tay) ----
