@@ -80,7 +80,8 @@ class DaySim:
     def _plan_for(self, n):
         if n in self.plan_override:
             return copy.deepcopy(self.plan_override[n])
-        return plan_for_day(self.tuning, n)
+        # v1.3 soak: kế hoạch D1–D5 lặp ở Ngày 6–10 (headless `--days` vẫn giới hạn 1..5)
+        return plan_for_day(self.tuning, (n - 1) % len(self.tuning["day_plan"]) + 1)
 
     def _level_value(self, upgrade, field, default):
         lv = self.active_upgrades.get(upgrade, 0)

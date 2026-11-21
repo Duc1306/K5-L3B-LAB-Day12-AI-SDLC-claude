@@ -40,7 +40,7 @@ class StandardNumbers(unittest.TestCase):
     def test_so_chuan_v11(self):
         with open("game.contract.json", encoding="utf-8") as f:
             c = json.load(f)
-        self.assertIn(c["contract_version"], ("1.1", "1.2"))  # số chuẩn v1.1 giữ nguyên ở v1.2
+        self.assertIn(c["contract_version"], ("1.1", "1.2", "1.3"))  # số chuẩn v1.1 giữ nguyên ở v1.2, v1.3
         self.assertEqual(G["fish_yield"], {"ca_linh": 3, "ca_loc": 1, "ca_keo": 2})
         self.assertEqual([(n["id"], n["kind"], n["pos"]) for n in G["nodes"]],
                          [("N1", "bong_dien_dien", [12, 0]), ("N2", "bong_dien_dien", [28, 0]),

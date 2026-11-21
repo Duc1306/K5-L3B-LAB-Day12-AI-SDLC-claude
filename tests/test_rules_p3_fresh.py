@@ -33,7 +33,7 @@ class Contract(unittest.TestCase):
     def test_contract_v12_freshness(self):
         with open("game.contract.json", encoding="utf-8") as f:
             c = json.load(f)
-        self.assertEqual(c["contract_version"], "1.2")
+        self.assertIn(c["contract_version"], ("1.2", "1.3"))  # v1.3 (Phase 4) giữ nguyên gameplay/kho v1.2
         self.assertEqual(c["tuning"]["freshness"],
                          {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30})
 
