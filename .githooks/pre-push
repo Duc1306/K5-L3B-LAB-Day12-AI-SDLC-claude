@@ -15,6 +15,6 @@ PYTHONPATH="tests${SEP}." "$PY" -m unittest discover -s tests >/dev/null 2>&1 \
 echo "[pre-push] kiểm tất định..."
 "$PY" tools/kiem_tat_dinh.py --mode gather --seed 1 --ticks 600 --inputs docs/proof/phase-1/g/day-inputs.json >/dev/null \
   || { echo "[pre-push] gather KHÔNG tất định"; exit 1; }
-"$PY" tools/kiem_tat_dinh.py --mode quan --seed 3 --ticks 3000 --inventory docs/proof/phase-1/g/day-kho.json >/dev/null \
+"$PY" tools/kiem_tat_dinh.py --mode quan --seed 3 --ticks 3000 --inventory docs/contracts/inventory.sample.json >/dev/null \
   || { echo "[pre-push] quan KHÔNG tất định"; exit 1; }
 echo "[pre-push] OK"

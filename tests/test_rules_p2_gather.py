@@ -9,7 +9,7 @@ import json
 import math
 import unittest
 
-from helpers import Workdir, events, read_jsonl, run_headless, write_json
+from helpers import Workdir, events, kinds_of, read_jsonl, run_headless, write_json
 from test_rules_gather import run_gather, snap_at
 
 
@@ -40,7 +40,7 @@ class StandardNumbers(unittest.TestCase):
     def test_so_chuan_v11(self):
         with open("game.contract.json", encoding="utf-8") as f:
             c = json.load(f)
-        self.assertEqual(c["contract_version"], "1.1")
+        self.assertIn(c["contract_version"], ("1.1", "1.2"))  # số chuẩn v1.1 giữ nguyên ở v1.2
         self.assertEqual(G["fish_yield"], {"ca_linh": 3, "ca_loc": 1, "ca_keo": 2})
         self.assertEqual([(n["id"], n["kind"], n["pos"]) for n in G["nodes"]],
                          [("N1", "bong_dien_dien", [12, 0]), ("N2", "bong_dien_dien", [28, 0]),
@@ -197,9 +197,11 @@ class Monsters(unittest.TestCase):
         rows, _ = run_gather(block, ticks=100)
         hits = events(rows, "monster_hit")
         self.assertEqual((hits[0]["tick"], hits[0]["data"]),
-                         (1, {"monster_id": "M1", "hp": G["hp_max"] - 1, "lost": ["keo_neo", "ca_keo"], "pos": [50, 20.5]}))
+                         (1, {"monster_id": "M1", "hp": G["hp_max"] - 1, "pos": [50, 20.5],
+                              "lost": [{"id": "I5", "kind": "keo_neo", "fresh": 99.992},      # v1.2: cá thể, LIFO
+                                       {"id": "I4", "kind": "ca_keo", "fresh": 99.992}]}))
         s1 = snap_at(rows, 1)
-        self.assertEqual(s1["hold"], hold[:3])
+        self.assertEqual(kinds_of(s1["hold"]), hold[:3])
         self.assertEqual(s1["player"]["invuln_ticks"], 90)
         m = s1["monsters"][0]
         self.assertEqual((m["state"], m["state_ticks_left"], m["recoil_dir"]), ("recoil", 60, [0.0, -1.0]))
@@ -211,7 +213,7 @@ class Monsters(unittest.TestCase):
         self.assertAlmostEqual(m61["pos"][1], m["pos"][1] - SP["recoil_dist"], places=2)
         # quái quay lại đuổi nhưng người chơi còn bất tử: hit kế tiếp đúng lúc hết bất tử (tick 1 + 90)
         self.assertEqual([e["tick"] for e in hits], [1, 91])
-        self.assertEqual(hits[1]["data"]["lost"], ["ca_linh"])
+        self.assertEqual(kinds_of(hits[1]["data"]["lost"]), ["ca_linh"])
 
     def test_bat_tu_chan_hit(self):
         block = {"player": {"pos": [50, 20.5], "invuln_ticks": 5}, "monsters": [mon()], **NO_FISH}
@@ -242,10 +244,11 @@ class Monsters(unittest.TestCase):
                  "monsters": [mon()], **NO_FISH}
         rows, inv = run_gather(block, ticks=10, inventory_out=True)
         self.assertEqual([e["name"] for e in events(rows)], ["monster_hit", "faint", "gather_end"])
-        self.assertEqual(events(rows, "monster_hit")[0]["data"]["lost"], ["ca_linh"])
-        self.assertEqual(events(rows, "faint")[0]["data"], {"cause": "monster", "lost": ["bong_sung", "ca_loc"], "hp": 0})
-        self.assertEqual(events(rows, "gather_end")[0]["data"], {"reason": "fainted", "inventory": {"items": {}}})
-        self.assertEqual(inv, {"items": {}})
+        self.assertEqual(kinds_of(events(rows, "monster_hit")[0]["data"]["lost"]), ["ca_linh"])
+        faint = events(rows, "faint")[0]["data"]
+        self.assertEqual((faint["cause"], faint["hp"], [i["id"] for i in faint["lost"]]), ("monster", 0, ["I2", "I1"]))
+        self.assertEqual(events(rows, "gather_end")[0]["data"], {"reason": "fainted", "inventory": {"items": []}})
+        self.assertEqual(inv, {"items": []})
         self.assertEqual(rows[-1]["ticks"], 1)
 
     def test_ngat_truoc_hit_cung_tick(self):

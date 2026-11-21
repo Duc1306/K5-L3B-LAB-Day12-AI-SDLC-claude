@@ -13,8 +13,8 @@ from chonoi.rng import Streams
 from chonoi.sim.plan import ingredients_for, plan_for_day
 from chonoi.sim.quan import QuanSim
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
-from test_rules_quan import C1_RESERVED, ev, run_quan, snap_at
+from helpers import Workdir, as_items, counts, events, frames, items, read_jsonl, run_headless, snapshots, write_json
+from test_rules_quan import C1_RESERVED, ev, price_at, run_quan, snap_at
 
 T = load_contract()["tuning"]
 Q, MENU = T["quan"], T["menu"]
@@ -109,8 +109,10 @@ class TwoStovesFourTables(unittest.TestCase):
                  "customers": [dict(C1_RESERVED, dish_id="lau_mam")]}
         rows = run_quan(block, fr=({"tick": 0, "interact": True},), ticks=cook + 1)
         started = ev(rows, "cook_started")[0][1]
-        self.assertEqual((started["items"], started["base_price"]),
-                         (["bong_dien_dien", "ca_keo", "ca_linh", "ca_linh", "keo_neo"], 200))
+        # v1.2: items là cá thể sắp theo kind rồi id; giá chốt theo tươi (nấu ở tick 1)
+        self.assertEqual(([i["kind"] for i in started["items"]], [i["id"] for i in started["items"]], started["base_price"]),
+                         (["bong_dien_dien", "ca_keo", "ca_linh", "ca_linh", "keo_neo"], ["I1", "I2", "I3", "I4", "I5"],
+                          price_at("lau_mam", 1)))
         self.assertEqual([t for t, _ in ev(rows, "dish_ready")], [1 + cook])
 
 
@@ -118,7 +120,7 @@ class PlanFilter(unittest.TestCase):
     """Chế độ `day` lọc món theo kế hoạch trước khi lọc nguyên liệu (v1.1 mục 4.5). Gọi thẳng QuanSim."""
 
     def shift(self, stock, plan, ticks=120, seed=1, customers=()):
-        sim = QuanSim(T, {"stock": stock, "customers": list(customers)}, Streams(seed), IdAllocator(),
+        sim = QuanSim(T, {"stock": as_items(stock), "customers": list(customers)}, Streams(seed), IdAllocator(),
                       plan_dishes=plan)
         out = []
         for _ in range(ticks):
@@ -152,19 +154,19 @@ class HandoffNewKinds(unittest.TestCase):
     def test_gather_sang_quan_voi_ca_keo_keo_neo(self):
         hold = ["ca_linh", "ca_linh", "ca_keo", "keo_neo", "bong_dien_dien"]
         with Workdir() as w:
-            sc = write_json(w.path("sc.json"), {"gather": {"hold": hold, "random_fish": False, "fish": []}})
+            sc = write_json(w.path("sc.json"), {"gather": {"hold": items(*hold), "random_fish": False, "fish": []}})
             inp = write_json(w.path("in.json"), frames({"tick": 0, "interact": True}))
             inv = w.path("inv.json")
             code, err = run_headless("--mode", "gather", "--seed", "3", "--ticks", "1", "--scenario", sc, "--inputs", inp,
                                      "--inventory-out", inv, "--out", w.path("g.jsonl"))
             self.assertEqual(code, 0, err)
             with open(inv, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {"bong_dien_dien": 1, "ca_keo": 1, "ca_linh": 2, "keo_neo": 1}})
+                self.assertEqual(counts(json.load(f)["items"]), {"bong_dien_dien": 1, "ca_keo": 1, "ca_linh": 2, "keo_neo": 1})
             code, err = run_headless("--mode", "quan", "--seed", "3", "--ticks", "120", "--inventory", inv,
                                      "--out", w.path("q.jsonl"))
             self.assertEqual(code, 0, err)
             rows = read_jsonl(w.path("q.jsonl"))
-            self.assertEqual(snapshots(rows)[0]["stock"], {"bong_dien_dien": 1, "ca_keo": 1, "ca_linh": 2, "keo_neo": 1})
+            self.assertEqual(counts(snapshots(rows)[0]["stock"]), {"bong_dien_dien": 1, "ca_keo": 1, "ca_linh": 2, "keo_neo": 1})
             self.assertEqual([e["data"]["dish_id"] for e in events(rows, "customer_arrived")], ["lau_mam"])
 
 

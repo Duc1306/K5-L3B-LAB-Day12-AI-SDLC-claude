@@ -624,7 +624,7 @@ function artUtSenGather(v, p, pp, underwater) {
   }
   drawUtSen(sx(pp[0]), y, s * ART.size.utsen, {
     angle, left: SMOOTH.facingLeft, surface: !underwater, phase: SMOOTH.phase, t,
-    fill: snap.hold_capacity ? (snap.hold || []).length / snap.hold_capacity : 0, kinds: snap.hold,
+    fill: snap.hold_capacity ? (snap.hold || []).length / snap.hold_capacity : 0, kinds: (snap.hold || []).map(kindOf),
   });
 }
 // bong bóng thở: dồn dập khi oxy thấp
@@ -1108,6 +1108,17 @@ function hudKho(w, h, title, items, t) {
     drawKindIcon(it.kind, x + slot / 2, y + sh * 0.4, slot * 0.62, t);
     hudText((KIND_NAME[it.kind] || it.kind) + " x" + it.n, x + slot / 2, y + sh - 12, 18, { align: "center" });
     if (it.held) hudText("giữ " + it.held, x + slot - 6, y + 12, 11, { align: "right", color: "#ffcf8a" });
+    // v1.2: thanh độ tươi trung bình (xanh ≥ 60, vàng ≥ 30) + số %, nhãn đỏ "ươn N" cho hàng ươn
+    if (it.avg != null) {
+      const bw = slot - 16, f = Math.max(0, Math.min(100, it.avg));
+      ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(x + 8, y + 4, bw, 6);
+      ctx.fillStyle = freshColor(f); ctx.fillRect(x + 8, y + 4, bw * f / 100, 6);
+      hudText(Math.floor(f) + "%", x + 8, y + 18, 11, { color: freshColor(f) });
+    }
+    if (it.spoiled) {
+      ctx.fillStyle = "rgba(150,30,20,.85)"; ctx.fillRect(x + 4, y + sh - 44, slot - 8, 18);
+      hudText("ươn " + it.spoiled, x + slot / 2, y + sh - 35, 13, { align: "center", color: "#ffe0d6" });
+    }
   });
 }
 // ô hành động dưới-phải: tiêu đề + nội dung + gợi ý phím
@@ -1123,7 +1134,24 @@ function hudHand(w, h, title, drawContent, hint) {
 function hudControls(w, h) {
   text("WASD đi · E tương tác · Space bắt · P dừng · R lại · H nhật ký", w / 2, h - 8, { size: 16, align: "center", color: "rgba(230,220,200,.75)" });
 }
-const countKinds = (list) => { const m = {}; (list || []).forEach((k) => (m[k] = (m[k] || 0) + 1)); return Object.keys(m).sort().map((k) => ({ kind: k, n: m[k] })); };
+// v1.2: giỏ/kho là mảng cá thể {id, kind, fresh}; fresh < 30 là ươn (vẫn chiếm ô, không nấu được)
+const SPOIL_BELOW = 30;
+const kindOf = (it) => (typeof it === "string" ? it : it.kind);
+const isSpoiled = (it) => typeof it === "object" && it.fresh < SPOIL_BELOW;
+// gom theo loại: n = dùng được, spoiled = ươn, held = đang giữ cho đơn, avg = độ tươi TB của phần dùng được
+function kindSummary(list, heldIds) {
+  const m = {};
+  (list || []).forEach((it) => {
+    const k = kindOf(it), e = m[k] || (m[k] = { kind: k, n: 0, held: 0, spoiled: 0, fr: [] });
+    if (heldIds && heldIds.has(it.id)) e.held++;
+    else if (isSpoiled(it)) e.spoiled++;
+    else { e.n++; if (typeof it === "object") e.fr.push(it.fresh); }
+  });
+  return Object.keys(m).sort().map((k) => { const e = m[k]; e.avg = e.fr.length ? e.fr.reduce((a, b) => a + b, 0) / e.fr.length : null; return e; });
+}
+const countKinds = (list) => kindSummary(list).map((e) => Object.assign(e, { n: e.n, total: e.n + e.spoiled }));
+const usableCounts = (list) => { const m = {}; (list || []).forEach((it) => { if (!isSpoiled(it)) m[kindOf(it)] = (m[kindOf(it)] || 0) + 1; }); return m; };
+const freshColor = (f) => (f >= 60 ? "#8fdc6a" : f >= SPOIL_BELOW ? "#f2c230" : "#e0533d");
 const near = (a, b, r) => a && b && Math.hypot(a[0] - b[0], a[1] - b[1]) <= r;
 // ---- HUD buổi sáng ----
 function hudGather(w, h, p, v) {
@@ -1670,10 +1698,10 @@ function hudQuan(w, h, v, pp) {
     { icon: iconMoney, text: (snap.money ?? 0) + "k" + (snap.mode === "day" ? "  (ca +" + ((snap.earned || 0) - dayStat(snap.day).earnedStart) + "k)" : ""), w: snap.mode === "day" ? 260 : 190 },
     { icon: (x, y, r) => iconStar(x, y, r), text: (snap.reputation ?? 0).toFixed(1) + "  ·  điểm " + (snap.score ?? 0), w: 250 },
   ]);
-  // PRD: HUD tối hiện KHO KHẢ DỤNG = tồn vật lý (snap.stock, gồm phần giữ chỗ) − phần khách đã giữ (đơn reserved)
-  const stock = snap.stock || {}, held = {};
-  (snap.customers || []).forEach((c) => { if (c.order_status === "reserved" && c.reserved) Object.keys(c.reserved).forEach((k) => (held[k] = (held[k] || 0) + c.reserved[k])); });
-  hudKho(w, h, "Kho khả dụng", Object.keys(stock).sort().map((k) => ({ kind: k, n: Math.max(0, stock[k] - (held[k] || 0)), held: held[k] || 0 })), t);
+  // PRD: HUD tối hiện KHO KHẢ DỤNG = cá thể chưa ươn và chưa bị đơn nào giữ (v1.2: giữ theo id cá thể)
+  const heldIds = new Set();
+  (snap.customers || []).forEach((c) => { if (c.order_status === "reserved" && Array.isArray(c.reserved)) c.reserved.forEach((id) => heldIds.add(id)); });
+  hudKho(w, h, "Kho khả dụng", kindSummary(Array.isArray(snap.stock) ? snap.stock : [], heldIds), t);
   const hand = snap.hand ? dishIdOf(snap.hand) : null;
   let hint = hand ? "Mang ra bàn" : "Chờ khách gọi món";
   const R = meta.interact_radius || 1.5, p = snap.player && snap.player.pos;
@@ -1760,7 +1788,7 @@ function dayWatch(now) {
   if (DAYUI.seen.size > 600) DAYUI.seen = new Set([...DAYUI.seen].slice(-300));
   if (snap.day !== DAYUI.lastDay) { DAYUI.lastDay = snap.day; dayStat(snap.day); if (!DAYUI.menu) DAYUI.intro = { kind: "day", t0: now }; }
   if (snap.phase !== DAYUI.lastPhase) {
-    if (!DAYUI.menu && DAYUI.lastPhase === "gather" && snap.phase === "quan") DAYUI.intro = { kind: "evening", t0: now, stock: { ...(snap.stock || {}) } };
+    if (!DAYUI.menu && DAYUI.lastPhase === "gather" && snap.phase === "quan") DAYUI.intro = { kind: "evening", t0: now, stock: usableCounts(snap.stock), spoiled: (snap.stock || []).filter(isSpoiled).length };
     if (!DAYUI.menu && DAYUI.lastPhase === "quan" && snap.phase === "shop") DAYUI.intro = { kind: "result", t0: now };
     DAYUI.lastPhase = snap.phase;
   }
@@ -1882,7 +1910,7 @@ function drawShop(w, h) {
     } else hudText("Đã tối đa", px + pw - 36, y + 2, 20, { align: "right", color: "#e8d6b0" });
   });
   hudText("Cấp mới có hiệu lực từ Ngày kế tiếp", w / 2, py + 286, 18, { align: "center", color: "#e8d6b0" });
-  const left = snap.stock || {}, lk = Object.keys(left);
+  const left = usableCounts(snap.stock), lk = Object.keys(left);
   hudText(lk.length ? "Kho dư (bỏ khi đóng Shop): " + lk.map((k) => (KIND_NAME[k] || k) + " ×" + left[k]).join(", ") : "Không còn kho dư", w / 2, py + 318, 18, { align: "center", color: "#d8c49a" });
   hudText(`[E] Đóng Shop  ·  tự đóng sau ${Math.ceil((snap.time_left_ticks || 0) / 60)}s`, w / 2, py + 362, 20, { align: "center" });
   if (DAYUI.msg && now - DAYUI.msg.t < 2.5) hudText(DAYUI.msg.text, w / 2, py + 430, 22, { align: "center", color: DAYUI.msg.ok ? "#c8f7b0" : "#ff8a80" });
@@ -1920,7 +1948,7 @@ function dayOverlay(w, h, now) {
 function hudNeeds(w) {
   const need = (snap.day_plan || {}).ingredients;
   if (!need) return;
-  const got = {}; (snap.hold || []).forEach((k) => (got[k] = (got[k] || 0) + 1));
+  const got = usableCounts(snap.hold);   // hàng ươn không tính là đã lấy (không nấu được)
   const kinds = Object.keys(need), cw = 82, pw = kinds.length * cw + 24, px = Math.max(270, w / 2 - pw / 2);
   woodPanel(px, 14, pw, 92, { rope: 14 });
   hudText("Má Tư cần", px + pw / 2, 30, 18, { align: "center" });

@@ -54,7 +54,8 @@ class DaySim:
         self.cur = None
         self.plan = None
         self.shop_tick = 0
-        self.leftover = {}
+        self.leftover = []
+        self.item_ids = IdAllocator()   # v1.2: id cá thể I1, I2… tăng xuyên pha và Ngày
         self.phase_changed = False
         self.start_events = self._start_day()   # event ở tick 0, ghi trước snapshot đầu
 
@@ -70,7 +71,7 @@ class DaySim:
         return self.cur.time_left_ticks
 
     def snapshot(self) -> dict:
-        s = self.cur.snapshot() if self.phase in ("gather", "quan") else {"stock": dict(self.leftover)}
+        s = self.cur.snapshot() if self.phase in ("gather", "quan") else {"stock": copy.deepcopy(self.leftover)}
         s.update({"day": self.day, "day_plan": copy.deepcopy(self.plan),
                   "upgrades": dict(self.upgrades), "active_upgrades": dict(self.active_upgrades)})
         return s
@@ -95,9 +96,14 @@ class DaySim:
         self.active_upgrades = dict(self.upgrades)          # chỉ lúc dựng Ngày mới mới sao cấp đã mua
         self.plan = self._plan_for(self.day)
         g = self.tuning["gather"]
-        self.cur = GatherSim(self.tuning, copy.deepcopy(self.gather_tpl), self.streams, IdAllocator(), day=self.day,
+        tpl = copy.deepcopy(self.gather_tpl)
+        if self.day > 1 and tpl.get("hold"):
+            # Ngày đầu giữ nguyên id trong mẫu; các Ngày kế cấp id mới theo thứ tự mảng, giữ kind/fresh ban đầu
+            tpl["hold"] = [dict(it, id=self.item_ids.new("I")) for it in tpl["hold"]]
+        self.cur = GatherSim(self.tuning, tpl, self.streams, IdAllocator(), day=self.day,
                              hp_max=self._level_value("hp", "hp_max", g["hp_max"]),
-                             oxygen_max_s=self._level_value("oxygen", "oxygen_max_s", g["oxygen_max_s"]))
+                             oxygen_max_s=self._level_value("oxygen", "oxygen_max_s", g["oxygen_max_s"]),
+                             item_ids=self.item_ids)
         self._sync_into(self.cur)
         self.phase = "gather"
         self.phase_changed = True
@@ -124,7 +130,7 @@ class DaySim:
         return [("phase_start", {}, "quan", self.day)]
 
     def _start_shop(self):
-        self.leftover = dict(self.cur.snapshot().get("stock", {}))   # kho dư của ca, bỏ khi đóng Shop
+        self.leftover = copy.deepcopy(self.cur.snapshot().get("stock", []))   # kho dư của ca (không hao ở Shop)
         self.shop_tick = 0
         self.phase = "shop"
         self.phase_changed = True
@@ -164,7 +170,7 @@ class DaySim:
         else:
             return evs
         self.days_completed += 1
-        self.leftover = {}
+        self.leftover = []
         if self.days_completed >= self.days:
             self.done = True
             self.reason = "days_complete"

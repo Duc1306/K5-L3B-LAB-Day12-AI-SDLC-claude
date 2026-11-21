@@ -9,7 +9,7 @@ giá/tip...) kiểm ở `QuanSim._check_links` — PRD-0 mục D, 'Mã 2'.
 import json
 
 from .errors import BadInput
-from .inventory import KINDS, validate_items
+from .inventory import validate_items
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "monsters", "time_left_ticks"}
 GATHER_PLAYER_KEYS = {"pos", "vel", "heading_deg", "hp", "oxygen_ticks", "zero_oxy_ticks",
@@ -182,8 +182,7 @@ def _validate_gather(b, tuning):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(k not in KINDS for k in h):
-            raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
+        validate_items(h)  # v1.2: mảng cá thể {id, kind, fresh}, id duy nhất, fresh trong [0, 100]
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
     p = b.get("player", {})
@@ -370,6 +369,5 @@ def _validate_quan_fields(b, tuning):
                 _nonneg_int(f"customers.{cid}.{key}", c[key])
         if "reserved" in c:
             r = c["reserved"]
-            if not isinstance(r, dict) or any(k not in KINDS for k in r) or \
-                    any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in r.values()):
-                raise BadInput(f"customers.{cid}.reserved phải là map kind -> số nguyên dương")
+            if not isinstance(r, list) or any(not isinstance(i, str) or not i for i in r) or len(set(r)) != len(r):
+                raise BadInput(f"customers.{cid}.reserved phải là mảng id cá thể (chuỗi khác rỗng, không trùng)")

@@ -3,9 +3,9 @@
 import json
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, events, frames, items, read_jsonl, run_headless, snapshots, write_json
 
-DOCK_SC = {"day": {}, "gather": {"hold": ["ca_loc", "bong_sung", "bong_sung"], "random_fish": False},
+DOCK_SC = {"day": {}, "gather": {"hold": items("ca_loc", "bong_sung", "bong_sung"), "random_fish": False},
            "quan": {"time_left_ticks": 20}}
 
 
@@ -65,17 +65,17 @@ class DayFlowTest(unittest.TestCase):
 
     def test_ngat_van_mo_quan_voi_kho_rong(self):
         sc = {"gather": {"player": {"pos": [20, 10], "oxygen_ticks": 0, "hp": 1, "zero_oxy_ticks": 59},
-                         "hold": ["ca_loc"], "random_fish": False}}
+                         "hold": items("ca_loc"), "random_fish": False}}
         with Workdir() as w:
             code, err, rows = day_run(w, scenario=sc, ticks=5, every=1000)
             self.assertEqual(code, 0, err)
             self.assertEqual(events(rows, "gather_end")[0]["data"]["reason"], "fainted")
             self.assertEqual(snap_at(rows, 1)["phase"], "quan")
-            self.assertEqual(snap_at(rows, 1)["stock"], {})
+            self.assertEqual(snap_at(rows, 1)["stock"], [])
 
     def test_quan_chi_ban_mon_trong_ke_hoach(self):
         # Ngày 1 kế hoạch: cá lóc nướng trui + gỏi bông súng. Có đủ đồ nấu lẩu nhưng lẩu ngoài kế hoạch -> no_dish.
-        sc = {"gather": {"hold": ["ca_linh", "ca_linh", "ca_linh", "bong_dien_dien"], "random_fish": False}}
+        sc = {"gather": {"hold": items("ca_linh", "ca_linh", "ca_linh", "bong_dien_dien"), "random_fish": False}}
         with Workdir() as w:
             code, err, rows = day_run(w, scenario=sc, inputs=short_day_frames(), ticks=200, every=1000)
             self.assertEqual(code, 0, err)
@@ -84,7 +84,7 @@ class DayFlowTest(unittest.TestCase):
 
     def test_ghi_de_ke_hoach_ngay_bang_scenario(self):
         sc = {"day": {"day_plan": [{"day": 1, "dishes": {"lau_ca_linh_dien_dien": 1}}]},
-              "gather": {"hold": ["ca_linh", "ca_linh", "ca_linh", "bong_dien_dien"], "random_fish": False}}
+              "gather": {"hold": items("ca_linh", "ca_linh", "ca_linh", "bong_dien_dien"), "random_fish": False}}
         with Workdir() as w:
             code, err, rows = day_run(w, scenario=sc, inputs=short_day_frames(), ticks=200, every=1000)
             self.assertEqual(code, 0, err)
@@ -176,7 +176,7 @@ class PauseTest(unittest.TestCase):
 class DayCliAndScenarioTest(unittest.TestCase):
     def test_ma_2_cho_co_va_scenario_sai(self):
         bad = [
-            ({"quan": {"stock": {"ca_loc": 1}}}, "quan.stock bị cấm trong day"),
+            ({"quan": {"stock": items("ca_loc")}}, "quan.stock bị cấm trong day"),
             ({"quan": {"reputation": 4}}, "quan.reputation bị cấm trong day"),
             ({"day": {"money": 100, "earned": 50}}, "money > earned"),
             ({"day": {"money": 100}}, "có tiền đầu kỳ mà thiếu earned"),
@@ -194,11 +194,11 @@ class DayCliAndScenarioTest(unittest.TestCase):
             for args, why in ((["--days", "6"], "--days ngoài 1..5"), (["--days", "0"], "--days = 0")):
                 self.assertEqual(run_headless("--mode", "day", "--seed", "1", "--ticks", "0", "--out", out, *args)[0], 2, why)
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "0", "--days", "1", "--out", out)[0], 2)
-            kho = write_json(w.path("k.json"), {"items": {}})
+            kho = write_json(w.path("k.json"), {"items": []})
             self.assertEqual(run_headless("--mode", "day", "--seed", "1", "--ticks", "0", "--inventory", kho, "--out", out)[0], 2)
 
     def test_khach_mau_goi_mon_ngoai_ke_hoach_la_ma_2_luc_mo_quan(self):
-        sc = {"gather": {"hold": ["ca_loc"], "random_fish": False},
+        sc = {"gather": {"hold": items("ca_loc"), "random_fish": False},
               "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_keo_nuong"}]}}
         with Workdir() as w:
             code, _, _ = day_run(w, scenario=sc, inputs=short_day_frames(), ticks=10)

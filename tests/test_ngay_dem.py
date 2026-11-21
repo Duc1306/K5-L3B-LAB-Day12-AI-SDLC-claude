@@ -24,7 +24,8 @@ class NgayDemLiveTest(unittest.TestCase):
     def setUp(self):
         tuning = load_contract()["tuning"]
         sc = {"day": {"money": 300, "earned": 300},
-              "gather": {"hold": ["ca_loc", "bong_sung", "bong_sung"], "random_fish": False},
+              "gather": {"hold": [{"id": f"I{i}", "kind": k, "fresh": 100}               # v1.2: cá thể
+                                  for i, k in enumerate(["ca_loc", "bong_sung", "bong_sung"], 1)], "random_fish": False},
               "quan": {"time_left_ticks": 20}}
         self.server = LiveServer(DayLiveGame(tuning, sc, seed=1, days=2), port=0)
         self.server.start()
@@ -48,7 +49,8 @@ class NgayDemLiveTest(unittest.TestCase):
         self.assertEqual([e["name"] for e in st["events"][:3]], ["day_start", "day_plan", "phase_start"])
         self.press("interact")                                         # đứng ở bến: cập bến
         self.assertTrue(_wait(lambda: self.get()["phase"] == "quan"))
-        self.assertEqual(self.get()["stock"], {"bong_sung": 2, "ca_loc": 1})
+        self.assertEqual(sorted((i["id"], i["kind"]) for i in self.get()["stock"]),
+                         [("I1", "ca_loc"), ("I2", "bong_sung"), ("I3", "bong_sung")])
         self.assertTrue(_wait(lambda: self.get()["phase"] == "shop"))
         self.assertEqual(self.post({"buy": "oxygen"}), 200)
         self.assertTrue(_wait(lambda: self.get()["upgrades"] == {"oxygen": 1}))

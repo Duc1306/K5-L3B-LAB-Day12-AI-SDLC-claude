@@ -8,7 +8,7 @@ import json
 import math
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, as_items, counts, events, frames, read_jsonl, run_headless, snapshots, write_json
 
 
 def tuning():
@@ -24,7 +24,21 @@ STOVE = Q["stoves"][0]["pos"]
 TABLE = Q["tables"][0]["pos"]
 
 
+def _v12(block):
+    """Adapter fixture P1–P2 -> v1.2: `stock` dạng đếm {kind: n} đổi sang cá thể I1… fresh 100 (sắp theo kind)."""
+    if "stock" in block:
+        block = dict(block, stock=as_items(block["stock"]))
+    return block
+
+
+def price_at(dish_id, ticks_in_stock):
+    """v1.2: giá chốt khi nấu = floor(giá × fresh/100); kho quán hao 0.25/s = 1/240 điểm mỗi tick (fresh đầu 100)."""
+    units = 24000 - ticks_in_stock
+    return MENU[dish_id]["price"] * units // 24000
+
+
 def run_quan(block, fr=(), ticks=1, seed=1):
+    block = _v12(block)
     with Workdir() as w:
         args = ["--mode", "quan", "--seed", str(seed), "--ticks", str(ticks), "--snapshot-every", "1",
                 "--scenario", write_json(w.path("sc.json"), {"quan": block}), "--out", w.path("o.jsonl")]
@@ -36,6 +50,7 @@ def run_quan(block, fr=(), ticks=1, seed=1):
 
 
 def exit_code(block):
+    block = _v12(block)
     with Workdir() as w:
         sc = write_json(w.path("sc.json"), {"quan": block})
         return run_headless("--mode", "quan", "--seed", "1", "--ticks", "0", "--scenario", sc, "--out", w.path("o.jsonl"))[0]
@@ -54,7 +69,7 @@ def payload(order_id="C1", dish_id="ca_loc_nuong_trui"):
 
 
 C1_RESERVED = {"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui"}
-C1_ASSIGNED = dict(C1_RESERVED, order_status="assigned", reserved={})
+C1_ASSIGNED = dict(C1_RESERVED, order_status="assigned", reserved=[])  # v1.2: reserved là mảng id cá thể
 
 
 class Customers(unittest.TestCase):
@@ -65,9 +80,9 @@ class Customers(unittest.TestCase):
         s = snap_at(rows, 120)
         c = s["customers"][0]
         self.assertEqual((c["order_tick"], c["state"], c["order_status"]), (120, "waiting", "reserved"))
-        self.assertEqual(c["reserved"], {"ca_loc": 1})
+        self.assertEqual(c["reserved"], ["I1"], "v1.2: giữ theo id, tươi nhất rồi id nhỏ")
         self.assertEqual(c["patience_ticks_left"], PATIENCE)
-        self.assertEqual(s["stock"], {"ca_loc": 2}, "stock là tồn vật lý, gồm cả phần giữ")
+        self.assertEqual(counts(s["stock"]), {"ca_loc": 2}, "stock là tồn vật lý, gồm cả phần giữ")
         self.assertEqual(s["tables"][0]["customer_id"], "C1")
 
     def test_kien_nhan_giam_tu_buoc_sau(self):
@@ -108,7 +123,7 @@ class Customers(unittest.TestCase):
                          [(1, {"order_id": "C1", "table_id": "T1", "reason": "patience", "reputation": rep})])
         s = snap_at(rows, 1)
         self.assertEqual((s["customers"], s["tables"][0]["customer_id"]), ([], None))
-        self.assertEqual(s["stock"], {"ca_loc": 1})
+        self.assertEqual(counts(s["stock"]), {"ca_loc": 1})
         self.assertAlmostEqual(s["reputation"], rep, places=2)
 
     def test_khach_roi_bo_mon_dang_nau(self):
@@ -126,11 +141,12 @@ class Kitchen(unittest.TestCase):
         rows = run_quan(block, fr=({"tick": 0, "interact": True},), ticks=cook + 1)
         self.assertEqual(ev(rows, "cook_started"),
                          [(1, {"stove_id": "B1", "order_id": "C1", "dish_id": "ca_loc_nuong_trui",
-                               "items": ["ca_loc"], "base_price": 60})])
+                               "items": [{"id": "I1", "kind": "ca_loc", "fresh": 99.996}],
+                               "base_price": price_at("ca_loc_nuong_trui", 1)})])  # v1.2: cá thể + giá theo tươi
         s = snap_at(rows, 1)
-        self.assertEqual(s["stock"], {})
+        self.assertEqual(s["stock"], [])
         c = s["customers"][0]
-        self.assertEqual((c["order_status"], c["reserved"]), ("assigned", {}))
+        self.assertEqual((c["order_status"], c["reserved"]), ("assigned", []))
         self.assertEqual(ev(rows, "dish_ready"),
                          [(1 + cook, {"stove_id": "B1", "order_id": "C1", "dish_id": "ca_loc_nuong_trui"})])
         st = snap_at(rows, 1 + cook)["stoves"][0]
@@ -217,7 +233,7 @@ class Serving(unittest.TestCase):
 class Closing(unittest.TestCase):
     def test_het_ca_khach_dang_an_tra_ngay(self):
         block = {"time_left_ticks": 1, "random_customers": False,
-                 "customers": [dict(C1_RESERVED, state="eating", order_status="served", reserved={},
+                 "customers": [dict(C1_RESERVED, state="eating", order_status="served", reserved=[],
                                     eat_ticks_left=100, base_price=60, tip=12)]}
         rows = run_quan(block, ticks=5)
         self.assertEqual([e["name"] for e in events(rows)], ["paid", "quan_end"])
@@ -250,13 +266,14 @@ class FullShift(unittest.TestCase):
         rows = run_quan(block, fr=fr, ticks=t_stop + 12 + EAT)
         names = [e["name"] for e in events(rows)]
         self.assertEqual(names, ["cook_started", "dish_ready", "dish_picked", "served", "paid"])
-        self.assertEqual(rows[-1]["earned"], 72)
+        base = price_at("ca_loc_nuong_trui", 1)  # v1.2: nấu ở tick 1 -> 59 (không còn giá niêm yết 60)
+        self.assertEqual(rows[-1]["earned"], base + math.floor(base * Q["tip_rate"]))
 
 
 class FixtureContradictions(unittest.TestCase):
     def test_mau_thuan_tra_ma_2(self):
         bad = [
-            {"stock": {"ca_loc": 2}, "customers": [dict(C1_RESERVED, reserved={"ca_loc": 2})]},  # khác công thức
+            {"stock": {"ca_loc": 2}, "customers": [dict(C1_RESERVED, reserved=["I1", "I2"])]},  # khác công thức
             {"customers": [C1_RESERVED]},  # giữ quá tồn (kho rỗng)
             {"hand": payload("C9")},  # liên kết thiếu
             {"customers": [C1_ASSIGNED]},  # assigned không có món
@@ -267,7 +284,7 @@ class FixtureContradictions(unittest.TestCase):
              "stoves": [{"id": "B1", "state": "ready", "dish": payload()}]},  # bếp và tay cùng đơn
             {"customers": [dict(C1_RESERVED, mood="vui")], "stock": {"ca_loc": 1}},  # trường lạ
             {"customers": [dict(C1_RESERVED, dish_id="pho")]},  # món ngoài phạm vi
-            {"customers": [dict(C1_RESERVED, order_status="unfulfillable", reserved={"ca_loc": 1})],
+            {"customers": [dict(C1_RESERVED, order_status="unfulfillable", reserved=["I1"])],
              "stock": {"ca_loc": 1}},  # unfulfillable phải giữ rỗng
             {"stoves": [{"id": "B9"}]},  # bếp không tồn tại (v1.1 đã có B2 thật)
             {"reputation": 9},
@@ -286,14 +303,14 @@ class FixtureContradictions(unittest.TestCase):
 
     def test_thieu_reserved_thi_cap_theo_cong_thuc(self):
         rows = run_quan({"stock": {"ca_loc": 1}, "customers": [C1_RESERVED], "random_customers": False}, ticks=0)
-        self.assertEqual(snapshots(rows)[0]["customers"][0]["reserved"], {"ca_loc": 1})
+        self.assertEqual(snapshots(rows)[0]["customers"][0]["reserved"], ["I1"])
 
 
 class Determinism(unittest.TestCase):
     def test_quan_cung_seed_giong_tung_byte(self):
         stock = {"ca_loc": 3, "bong_sung": 4, "ca_linh": 3, "bong_dien_dien": 1}
         with Workdir() as w:
-            sc = write_json(w.path("sc.json"), {"quan": {"stock": stock}})
+            sc = write_json(w.path("sc.json"), {"quan": _v12({"stock": stock})})
             for i in (1, 2):
                 code, err = run_headless("--mode", "quan", "--seed", "5", "--ticks", "2000", "--scenario", sc,
                                          "--out", w.path(f"o{i}.jsonl"))
