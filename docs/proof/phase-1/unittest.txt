@@ -1,0 +1,152 @@
+test_state_input_and_clean_stop (test_live.LiveServerTest.test_state_input_and_clean_stop) ... ok
+test_bad_frames_raise (test_python_starter_units.Units.test_bad_frames_raise) ... ok
+test_catch_is_a_v10_button_and_attack_is_not (test_python_starter_units.Units.test_catch_is_a_v10_button_and_attack_is_not) ... ok
+test_id_allocator_continues_after_max (test_python_starter_units.Units.test_id_allocator_continues_after_max) ... ok
+test_id_sorting (test_python_starter_units.Units.test_id_sorting) ... ok
+test_input_edges_and_inherit (test_python_starter_units.Units.test_input_edges_and_inherit) ... ok
+test_live_inputs_keep_fast_tap_edge (test_python_starter_units.Units.test_live_inputs_keep_fast_tap_edge) ... ok
+test_session_steps_gather_and_dock (test_python_starter_units.Units.test_session_steps_gather_and_dock) ... ok
+test_bat_dan_gan_nhat (test_rules_gather.Catch.test_bat_dan_gan_nhat) ... ok
+test_hoa_khoang_cach_theo_id (test_rules_gather.Catch.test_hoa_khoang_cach_theo_id) ... ok
+test_hoi_chieu_dung_lai_tu_t_cong_L (test_rules_gather.Catch.test_hoi_chieu_dung_lai_tu_t_cong_L) ... ok
+test_hold_full_giu_dan_va_khong_thu_dan_khac (test_rules_gather.Catch.test_hold_full_giu_dan_va_khong_thu_dan_khac) ... ok
+test_khong_bat_o_mat_nuoc_va_ngoai_tam (test_rules_gather.Catch.test_khong_bat_o_mat_nuoc_va_ngoai_tam) ... ok
+test_bat_hop_le_o_buoc_cuoi_van_vao_kho (test_rules_gather.EndOfMorning.test_bat_hop_le_o_buoc_cuoi_van_vao_kho) ... ok
+test_cap_ben_o_buoc_cuoi_van_docked (test_rules_gather.EndOfMorning.test_cap_ben_o_buoc_cuoi_van_docked) ... ok
+test_hai_chon_nut_gan_nhat_hoa_theo_id (test_rules_gather.Harvest.test_hai_chon_nut_gan_nhat_hoa_theo_id) ... ok
+test_hai_dung_mep_ban_kinh (test_rules_gather.Harvest.test_hai_dung_mep_ban_kinh) ... ok
+test_hold_full_khi_hai (test_rules_gather.Harvest.test_hold_full_khi_hai) ... ok
+test_khong_hai_duoi_nuoc (test_rules_gather.Harvest.test_khong_hai_duoi_nuoc) ... ok
+test_node_regrown_roi_hai_ngay_cung_buoc (test_rules_gather.Harvest.test_node_regrown_roi_hai_ngay_cung_buoc) ... ok
+test_nut_chua_moc_khong_hai_lai (test_rules_gather.Harvest.test_nut_chua_moc_khong_hai_lai) ... ok
+test_dive_va_surface_chi_khi_doi_phia (test_rules_gather.Oxygen.test_dive_va_surface_chi_khi_doi_phia) ... ok
+test_duoi_nuoc_tru_1_tick (test_rules_gather.Oxygen.test_duoi_nuoc_tru_1_tick) ... ok
+test_mat_nuoc_hoi_va_kep_max (test_rules_gather.Oxygen.test_mat_nuoc_hoi_va_kep_max) ... ok
+test_ngat_mat_gio_LIFO_va_kho_rong (test_rules_gather.Oxygen.test_ngat_mat_gio_LIFO_va_kho_rong) ... ok
+test_noi_len_dung_buoc_ngat_thi_khong_ngat (test_rules_gather.Oxygen.test_noi_len_dung_buoc_ngat_thi_khong_ngat) ... ok
+test_noi_len_reset_dem_ngat (test_rules_gather.Oxygen.test_noi_len_reset_dem_ngat) ... ok
+test_oxygen_empty_roi_choke_o_t_cong_59 (test_rules_gather.Oxygen.test_oxygen_empty_roi_choke_o_t_cong_59) ... ok
+test_het_ca_khach_cho_roi_closing_khong_tru_uy_tin (test_rules_quan.Closing.test_het_ca_khach_cho_roi_closing_khong_tru_uy_tin) ... ok
+test_het_ca_khach_dang_an_tra_ngay (test_rules_quan.Closing.test_het_ca_khach_dang_an_tra_ngay) ... ok
+test_chon_mon_trong_cac_mon_du_nguyen_lieu (test_rules_quan.Customers.test_chon_mon_trong_cac_mon_du_nguyen_lieu) ... ok
+test_het_ban_thi_bo_luot (test_rules_quan.Customers.test_het_ban_thi_bo_luot) ... ok
+test_het_kien_nhan_roi_ban_tru_uy_tin_nha_giu_cho (test_rules_quan.Customers.test_het_kien_nhan_roi_ban_tru_uy_tin_nha_giu_cho) ... ok
+test_khach_dau_den_theo_lich_va_giu_cho (test_rules_quan.Customers.test_khach_dau_den_theo_lich_va_giu_cho) ... ok
+test_khach_roi_bo_mon_dang_nau (test_rules_quan.Customers.test_khach_roi_bo_mon_dang_nau) ... ok
+test_kien_nhan_giam_tu_buoc_sau (test_rules_quan.Customers.test_kien_nhan_giam_tu_buoc_sau) ... ok
+test_no_dish_khi_co_ban_ma_thieu_mon (test_rules_quan.Customers.test_no_dish_khi_co_ban_ma_thieu_mon) ... ok
+test_random_customers_false_tat_khach_tu_sinh (test_rules_quan.Customers.test_random_customers_false_tat_khach_tu_sinh) ... ok
+test_quan_cung_seed_giong_tung_byte (test_rules_quan.Determinism.test_quan_cung_seed_giong_tung_byte) ... ok
+test_fixture_hop_le (test_rules_quan.FixtureContradictions.test_fixture_hop_le) ... ok
+test_mau_thuan_tra_ma_2 (test_rules_quan.FixtureContradictions.test_mau_thuan_tra_ma_2) ... Exception in thread Thread-108 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Asus\anaconda3\Lib\subprocess.py", line 1597, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "C:\Users\Asus\anaconda3\Lib\encodings\cp1258.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 46: character maps to <undefined>
+Exception in thread Thread-110 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Asus\anaconda3\Lib\subprocess.py", line 1597, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "C:\Users\Asus\anaconda3\Lib\encodings\cp1258.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 37: character maps to <undefined>
+ok
+test_thieu_reserved_thi_cap_theo_cong_thuc (test_rules_quan.FixtureContradictions.test_thieu_reserved_thi_cap_theo_cong_thuc) ... ok
+test_nau_bung_phuc_vu_tra_tien (test_rules_quan.FullShift.test_nau_bung_phuc_vu_tra_tien) ... ok
+test_bep_idle_khong_co_don_thi_bo_luot (test_rules_quan.Kitchen.test_bep_idle_khong_co_don_thi_bo_luot) ... ok
+test_bung_mon_tu_bep_ready (test_rules_quan.Kitchen.test_bung_mon_tu_bep_ready) ... ok
+test_nau_tieu_nguyen_lieu_giu_va_chin_dung_tick (test_rules_quan.Kitchen.test_nau_tieu_nguyen_lieu_giu_va_chin_dung_tick) ... ok
+test_ready_ticks_tang_tu_buoc_sau (test_rules_quan.Kitchen.test_ready_ticks_tang_tu_buoc_sau) ... ok
+test_ban_sai_mon_khong_phuc_vu (test_rules_quan.Serving.test_ban_sai_mon_khong_phuc_vu) ... ok
+test_bep_truoc_ban_khi_bang_khoang_cach_va_bo_luot (test_rules_quan.Serving.test_bep_truoc_ban_khi_bang_khoang_cach_va_bo_luot)
+Bếp và bàn cách đều: chọn bếp; bếp idle không có đơn -> bỏ lượt, KHÔNG phục vụ bàn. ... ok
+test_dung_nguong_ty_le_van_boa (test_rules_quan.Serving.test_dung_nguong_ty_le_van_boa) ... ok
+test_kien_nhan_thap_khong_boa (test_rules_quan.Serving.test_kien_nhan_thap_khong_boa) ... ok
+test_phuc_vu_boa_khi_kien_nhan_du_ty_le (test_rules_quan.Serving.test_phuc_vu_boa_khi_kien_nhan_du_ty_le) ... ok
+test_phuc_vu_dung_tick_kien_nhan_ve_0_van_hop_le (test_rules_quan.Serving.test_phuc_vu_dung_tick_kien_nhan_ve_0_van_hop_le) ... ok
+test_con_01_ticks_zero_and_end_line (test_smoke_p1.Contract.test_con_01_ticks_zero_and_end_line) ... ok
+test_con_02_deterministic_bytes (test_smoke_p1.Contract.test_con_02_deterministic_bytes) ... ok
+test_con_03_bad_input_exit_2 (test_smoke_p1.Contract.test_con_03_bad_input_exit_2) ... Exception in thread Thread-158 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Asus\anaconda3\Lib\subprocess.py", line 1597, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "C:\Users\Asus\anaconda3\Lib\encodings\cp1258.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 35: character maps to <undefined>
+Exception in thread Thread-160 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Asus\anaconda3\Lib\subprocess.py", line 1597, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "C:\Users\Asus\anaconda3\Lib\encodings\cp1258.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 35: character maps to <undefined>
+ok
+test_con_03_old_and_future_modes_rejected (test_smoke_p1.Contract.test_con_03_old_and_future_modes_rejected) ... ok
+test_gather_snapshot_has_gather_fields (test_smoke_p1.Contract.test_gather_snapshot_has_gather_fields) ... ok
+test_scenario_out_of_domain_exit_2 (test_smoke_p1.Contract.test_scenario_out_of_domain_exit_2) ... Exception in thread Thread-180 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Asus\anaconda3\Lib\threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Asus\anaconda3\Lib\subprocess.py", line 1597, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "C:\Users\Asus\anaconda3\Lib\encodings\cp1258.py", line 23, in decode
+    return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 23: character maps to <undefined>
+ok
+test_inv_01_gather_writes_inventory_quan_reads_it (test_smoke_p1.Integration.test_inv_01_gather_writes_inventory_quan_reads_it)
+Ví dụ smoke test trong PRD-0 mục G: cập bến ở tick 0, quán đọc kho đúng nội dung. ... ok
+test_inv_01_not_written_when_tick_limit_first (test_smoke_p1.Integration.test_inv_01_not_written_when_tick_limit_first) ... ok
+test_inv_bad_schema_exit_2 (test_smoke_p1.Integration.test_inv_bad_schema_exit_2) ... ok
+test_inventory_and_scenario_stock_conflict (test_smoke_p1.Integration.test_inventory_and_scenario_stock_conflict) ... ok
+test_inventory_flags_mode_mismatch_exit_2 (test_smoke_p1.Integration.test_inventory_flags_mode_mismatch_exit_2) ... ok
+test_move_01_swim_speed_after_ramp (test_smoke_p1.Movement.test_move_01_swim_speed_after_ramp)
+Bỏ 6 tick tăng tốc rồi đo 60 tick: quãng ≈ swim_speed × 1 s (±0.1). Ngang, xuống, chéo (không nhanh hơn). ... ok
+test_move_02_heading_positive_is_down (test_smoke_p1.Movement.test_move_02_heading_positive_is_down) ... ok
+test_move_03_edge_clamp (test_smoke_p1.Movement.test_move_03_edge_clamp)
+Chặn từng mép của vùng nước, kể cả d không âm (không bay lên khỏi mặt nước) và đáy d = 30. ... ok
+test_move_mep_vel_ve_0 (test_smoke_p1.Movement.test_move_mep_vel_ve_0) ... ok
+test_move_ramp_doi_huong_trong_tran (test_smoke_p1.Movement.test_move_ramp_doi_huong_trong_tran)
+Đảo từ +speed sang -speed: vận tốc chạm mục tiêu sau tối đa ramp_max_ticks tick kể từ lúc đổi input. ... ok
+test_time_ends_gather_and_keeps_hold (test_smoke_p1.Movement.test_time_ends_gather_and_keeps_hold) ... ok
+test_khoi_sai_mode_exit_2 (test_smoke_p1.ScenarioModes.test_khoi_sai_mode_exit_2) ... ok
+test_quan_fixture_khong_hop_le_exit_2 (test_smoke_p1.ScenarioModes.test_quan_fixture_khong_hop_le_exit_2) ... ok
+test_quan_player_vel_hop_le (test_smoke_p1.ScenarioModes.test_quan_player_vel_hop_le) ... ok
+test_good (test_team_check.TeamCheck.test_good) ... ok
+test_template_is_rejected (test_team_check.TeamCheck.test_template_is_rejected) ... ok
+test_too_few_members (test_team_check.TeamCheck.test_too_few_members) ... ok
+test_wrong_size_duplicate_and_outsider (test_team_check.TeamCheck.test_wrong_size_duplicate_and_outsider) ... ok
+
+----------------------------------------------------------------------
+Ran 77 tests in 24.486s
+
+OK
