@@ -111,11 +111,13 @@ buộc hai chỗ này khớp nhau và từ chối mã mở rộng chưa làm (m�
 | Scenario | `quan.stoves[].ready_ticks` dựng tuổi món chín (đã có từ v1.0). |
 | Snapshot | Không thêm trường. UI thấy qua event `dish_burnt` và bếp chuyển `idle`. |
 
-## 3b. Chế độ `day`, Shop, pause (v1.1)
+## 3b. Chế độ `day`, Shop, pause (v1.1, kho theo v1.2)
 
 - **CLI:** `--mode day [--days 1..5]` (mặc định 1). Kho bàn giao trong bộ nhớ. `--inventory`/`--inventory-out` với `day` → mã 2.
 - **Vòng ngày:** `day_start` → `day_plan{dishes,ingredients}` → `phase_start` (gather) → `gather_end` → `phase_start` (quan, cùng tick) → `quan_end` → `phase_start` (shop, cùng tick) → `shop_end{reason: done|time}` → Ngày kế (cùng tick) hoặc kết thúc `days_complete`.
 - **Vỏ event** có thêm `day`. Event kết thúc mang pha cũ.
+- **Snapshot đổi pha:** ngoài nhịp `--snapshot-every`, runner ghi thêm một snapshot ở tick đổi pha (gather→quan, quan→shop, shop→Ngày kế) với pha mới và `phase_tick: 0`; mỗi tick vẫn tối đa một snapshot (clarify #18).
+- **RNG và id:** một `Streams(seed)` cho cả lượt; id cá `F` và khách `C` cấp lại mỗi buổi; id cá thể `I` tăng xuyên pha và Ngày (clarify #17, #28).
 - **Snapshot** mọi pha có thêm `day`, `day_plan`, `upgrades` (cấp đã mua), `active_upgrades` (cấp đang áp dụng). Snapshot Shop có `stock` (kho dư) và `time_left_ticks`.
 - **Dòng `end`** có thêm `days_completed`.
 - **Inputs:** thêm `pause`, `shop_done`, `attack`, `photo` (bool, chỉ xét cạnh lên) và `buy` (chuỗi, chỉ chạy tại frame khai báo).
@@ -133,4 +135,5 @@ Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`
 | 2026-11-21 | v1.1 (Phase 2): số chuẩn, 3 loài cá, Cá Sấu, 2 bếp/4 bàn/6 món, `day_plan`, `shop`, `day`/Shop/pause. | TICKET-02 | Duc1306, congvt |
 | 2026-11-21 | **v1.2 (Phase 3, breaking)**: kho đếm → kho cá thể `{id,kind,fresh}`, `tuning.freshness`, event `spoiled`, giữ chỗ theo id, giá theo tươi, `lost`/`items` là cá thể. | TICKET-03, [ADR-0001](../adr/0001-kho-ca-the-v12.md) | Duc1306 (+ TADIZB) |
 | 2026-11-21 | Thêm mục 3b: `day`, Shop, pause theo Test Contract v1.1. | TICKET-02 | (cả nhóm xác nhận) |
+| 2026-11-21 | Mục 3b: ghi snapshot đổi pha và cách cấp id xuyên Ngày cho khớp code `runner.py` / `sim/day.py`. Hành vi không đổi. | Đối chiếu sau merge | Shirou191 |
 | 2026-11-21 | Mở rộng **Cháy món** (`extensions: ["burn"]`, `burn_s: 20`, event `dish_burnt`). Không đổi schema kho, không đổi luật lõi khi `burn_s` null. | Nhóm lên 5 người: TICKET-02/03 yêu cầu ≥ 1 mục mở rộng | hadatttt |
