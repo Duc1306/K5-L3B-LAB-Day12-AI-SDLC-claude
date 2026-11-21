@@ -144,6 +144,18 @@ const ART = {
   surfaceHi: "rgba(255,236,214,.75)",
   ray: "rgba(255,214,160,", silt: "rgba(240,210,160,", murk: "rgba(48,30,14,",
   mud: ["#5a3d22", "#3e2916"], weed: "#5d6b34",
+  // cây hái (bán thực tế, theo ảnh tư liệu): lá súng mặt trên xanh, mặt dưới tím đỏ; hoa súng trắng hồng → tím hồng;
+  // điên điển hoa vàng tươi có vệt cam; kèo nèo cọng xanh nhạt, lá xanh vàng gân cong, hoa 3 cánh vàng kem
+  plant: {
+    dead: "#7a6440", ripple: "rgba(255,240,220,",
+    lilyPad: "#3d6b2f", lilyPadHi: "#76a24a", lilyPadUnder: "#7a3a48", lilyStem: "#6b7a3a",
+    lilyBase: "#fff2f6", lilyTip: "#cf5598", lilyTipBack: "#e695c2", lilySepal: "#4f6b34", lilySepalTip: "#7d4a6c",
+    lilyGold: "#f5c934", lilyGoldDeep: "#d99a1e",
+    dienBark: "#6b6340", dienLeaf: "#4a7a2c", dienLeafHi: "#7aa846", dienCalyx: "#7f9a3a", dienBud: "#c8cf5a",
+    dienFlower: "#ffcd1c", dienFlowerDeep: "#e8900f", dienWing: "#f9de62",
+    keoStem: "#86b04c", keoStemDark: "#628c38", keoLeaf: "#8cbd44", keoLeafHi: "#c4de7c", keoVein: "#e4f0b6",
+    keoFlower: "#f6e98e", keoFlowerC: "#e7b52e",
+  },
   wood: "#8d6e4b", woodDark: "#6b4a2b", wall: "#a07a50", roof: "#9b7b4f", roofDark: "#7a5e38", jar: "#a0522d",
   // tỉ lệ kích thước (đơn vị thế giới ≈ mét, có cách điệu để nhìn rõ). Út Sen là thước chuẩn.
   size: {
@@ -152,6 +164,10 @@ const ART = {
     caLinh: 0.55,       // mỗi con cá linh; vẽ thành đàn
     caLinhSchool: 5,    // số con mỗi đàn (1 thực thể = 1 đàn)
     caKeo: 0.7, fishOther: 0.9,
+    // cây hái trên mặt nước (phóng ~2.5 lần so với ngoài đời, như cá, để nhìn rõ)
+    lilyPad: 0.58, lilyFlower: 0.58,      // bông súng: bán kính lá nổi, cỡ hoa
+    dienDien: 2.0, dienFlower: 0.17,     // điên điển: chiều cao bụi trên mặt nước, cỡ một hoa
+    keoNeo: 1.2, keoLeaf: 0.48, keoFlower: 0.26,
     dockW: 5.0, houseW: 3.6, wallH: 2.5, doorH: 2.0, roofH: 1.3,
   },
   // camera gather: số đơn vị thế giới thấy được theo chiều dọc / tối thiểu theo chiều ngang (nhỏ hơn = phóng to hơn)
@@ -694,6 +710,257 @@ function artFish(v, f, fp, rad) {
     const L = (f.kind === "ca_loc" ? Z.caLoc : f.kind === "ca_keo" ? Z.caKeo : Z.fishOther) * s;
     drawOneFish(f.kind, L, Math.sin(t * 7 + ph) * 0.3);
   }
+  ctx.restore();
+}
+// ---- cây hái trên mặt nước (nhìn ngang, bán thực tế) ----
+// Theo hình dạng ngoài đời: bông súng = lá tròn có khe nổi phẳng trên mặt nước, hoa cánh nhọn hồng tím nhô lên trên
+// cọng dài mọc từ đáy; điên điển = bụi cây thân mảnh mọc giữa nước lũ, lá kép lông chim, chùm hoa vàng rủ xuống;
+// kèo nèo = cụm cọng lá dày mọc thẳng, phiến lá bầu dục xanh vàng gân cong, ngồng hoa 3 cánh vàng kem.
+// Vừa hái (ready=false): mất hoa / còn cọng cụt, màu xỉn; mọc lại thì lớn dần. Chỉ đọc snapshot.
+const NODEFX = new Map();   // id → { ready, at }: thời điểm đổi trạng thái để làm hiệu ứng (bắn nước / nở lại)
+const hexRGB = (h) => { const p = parseInt(h.slice(1), 16); return [(p >> 16) & 255, (p >> 8) & 255, p & 255]; };
+const mixRGB = (a, b, k) => { const A = hexRGB(a), B = hexRGB(b); return A.map((c, i) => Math.round(c + (B[i] - c) * k)); };
+const rgba = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const plantCol = (key, wilt) => mixRGB(ART.plant[key], ART.plant.dead, wilt);
+const qpt = (x0, y0, cx, cy, x1, y1, k) => { const m = 1 - k; return [m * m * x0 + 2 * m * k * cx + k * k * x1, m * m * y0 + 2 * m * k * cy + k * k * y1]; };
+// cọng/thân dưới nước: mờ dần vào nước đục
+function underStem(x0, y0, x1, y1, bend, lw, col) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, rgba(col, 0.85)); g.addColorStop(1, rgba(col, 0));
+  ctx.strokeStyle = g; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2 + bend, (y0 + y1) / 2, x1, y1); ctx.stroke();
+}
+// cánh hoa nhọn mọc từ (x,y) theo góc ang (0 = thẳng lên), chuyển màu gốc → ngọn
+function petal(x, y, ang, len, wid, cBase, cTip) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  const g = ctx.createLinearGradient(0, 0, 0, -len); g.addColorStop(0, cBase); g.addColorStop(1, cTip);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(wid, -len * 0.25, wid * 0.8, -len * 0.7, 0, -len);
+  ctx.bezierCurveTo(-wid * 0.8, -len * 0.7, -wid, -len * 0.25, 0, 0); ctx.fill();
+  ctx.restore();
+}
+// --- bông súng ---
+function lilyPad(p, u, wv, c, hi, lo) {
+  const cx = p.dx * u, cy = wv(p.dx), rx = p.rx * u, ry = rx * 0.22;
+  const tilt = Math.atan2(wv(p.dx + 0.3) - wv(p.dx - 0.3), 0.6 * u);          // lá nằm theo sóng
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt);
+  ctx.fillStyle = rgba(lo, 0.8); ctx.beginPath(); ctx.ellipse(0, ry * 0.4, rx * 1.01, ry * 0.75, 0, 0, Math.PI); ctx.fill();   // mép mặt dưới tím đỏ
+  const g = ctx.createLinearGradient(0, -ry, 0, ry); g.addColorStop(0, rgba(hi)); g.addColorStop(1, rgba(c));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.ellipse(0, 0, rx, ry, 0, p.notch + 0.22, p.notch - 0.22 + Math.PI * 2); ctx.closePath(); ctx.fill();   // phiến tròn có khe chữ V
+  ctx.strokeStyle = rgba(c, 0.55); ctx.lineWidth = Math.max(0.6, 0.012 * u);
+  for (let k = 1; k < 8; k++) { const a = p.notch + k * (Math.PI / 4); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * rx * 0.9, Math.sin(a) * ry * 0.9); ctx.stroke(); }
+  ctx.fillStyle = "rgba(255,250,235,.3)"; ctx.beginPath(); ctx.ellipse(-rx * 0.3, -ry * 0.35, rx * 0.35, ry * 0.25, 0, 0, Math.PI * 2); ctx.fill();   // ánh trời trên lá ướt
+  ctx.restore();
+}
+function lilyFlower(x, y, sz) {
+  const P = ART.plant;
+  [-1.3, 1.3, -0.9, 0.9].forEach((a) => petal(x, y, a, sz * 0.55, sz * 0.13, P.lilySepal, P.lilySepalTip));          // đài xanh pha tím
+  [-1.05, -0.65, -0.27, 0.12, 0.5, 0.9].forEach((a, i) => petal(x, y, a, sz * (0.9 + (i % 2) * 0.1), sz * 0.15, P.lilyBase, P.lilyTipBack));   // cánh sau xòe
+  ctx.fillStyle = P.lilyGold; ctx.beginPath(); ctx.ellipse(x, y - sz * 0.3, sz * 0.24, sz * 0.09, 0, 0, Math.PI * 2); ctx.fill();   // nhụy vàng
+  ctx.strokeStyle = P.lilyGoldDeep; ctx.lineWidth = Math.max(0.8, sz * 0.03);
+  for (let k = -4; k <= 4; k++) { ctx.beginPath(); ctx.moveTo(x + k * sz * 0.045, y - sz * 0.3); ctx.lineTo(x + k * sz * 0.06, y - sz * 0.43 + Math.abs(k) * sz * 0.015); ctx.stroke(); }
+  [-0.62, -0.2, 0.2, 0.62].forEach((a) => petal(x, y + sz * 0.02, a, sz * 0.78, sz * 0.17, P.lilyBase, P.lilyTip));   // cánh trước ôm chén
+}
+function lilyBud(x, y, sz, lean) {
+  const P = ART.plant;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(lean);
+  const g = ctx.createLinearGradient(0, 0, 0, -sz * 0.6); g.addColorStop(0, P.lilySepal); g.addColorStop(0.55, P.lilySepalTip); g.addColorStop(1, P.lilyTip);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(sz * 0.2, -sz * 0.1, sz * 0.14, -sz * 0.45, 0, -sz * 0.6);
+  ctx.bezierCurveTo(-sz * 0.14, -sz * 0.45, -sz * 0.2, -sz * 0.1, 0, 0); ctx.fill();
+  ctx.strokeStyle = "rgba(40,60,30,.45)"; ctx.lineWidth = Math.max(0.6, sz * 0.02);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(sz * 0.07, -sz * 0.3, 0, -sz * 0.58); ctx.stroke();
+  ctx.restore();
+}
+function plantLily(o) {
+  const { u, r, wv, t, wilt, grow } = o, Z = ART.size;
+  const pads = [];
+  for (let i = 0; i < 4; i++) pads.push({ dx: (i / 3 - 0.5) * 2.1 + (r() - 0.5) * 0.35, rx: Z.lilyPad * (0.8 + r() * 0.4), notch: Math.PI * (0.2 + r() * 0.6), root: (r() - 0.5) * 1.4 });
+  const fdx = (r() - 0.5) * 0.6, bdx = fdx + (r() > 0.5 ? 0.55 : -0.55), fh = 0.36 + r() * 0.12, bh = 0.2 + r() * 0.1, lean = (r() - 0.5) * 0.3;
+  const dull = wilt * 0.3, lw = Math.max(1, 0.035 * u);
+  const padC = plantCol("lilyPad", dull), padHi = plantCol("lilyPadHi", dull), padLo = plantCol("lilyPadUnder", dull), stemC = plantCol("lilyStem", dull);
+  pads.forEach((p, i) => underStem(p.dx * u, wv(p.dx) + 0.04 * u, p.root * u, 4.2 * u, Math.sin(t * 0.6 + i * 1.7) * 0.3 * u, lw, stemC));
+  underStem(fdx * u, wv(fdx), 0.2 * u, 4.2 * u, Math.sin(t * 0.5) * 0.35 * u, lw * 1.3, stemC);
+  underStem(bdx * u, wv(bdx), -0.3 * u, 4.2 * u, Math.sin(t * 0.55 + 2) * 0.3 * u, lw * 1.2, stemC);
+  pads.forEach((p) => lilyPad(p, u, wv, padC, padHi, padLo));
+  const stalk = (dx, h, a) => {
+    const x0 = dx * u, y0 = wv(dx), tx = x0 + Math.sin(a) * h * u, ty = y0 - Math.cos(a) * h * u;
+    ctx.strokeStyle = rgba(stemC); ctx.lineWidth = lw * 1.2;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0, (y0 + ty) / 2, tx, ty); ctx.stroke();
+    return [tx, ty];
+  };
+  if (wilt) {                                                    // hoa đã hái: còn cọng cụt sát mặt nước
+    [fdx, bdx].forEach((dx) => { const tp = stalk(dx, 0.09, lean); ctx.fillStyle = rgba(mixRGB(ART.plant.lilyStem, "#e8e0b0", 0.5)); ctx.beginPath(); ctx.ellipse(tp[0], tp[1], lw, lw * 0.5, 0, 0, Math.PI * 2); ctx.fill(); });
+    return;
+  }
+  const sw = Math.sin(t * 1.1) * 0.08;
+  const bp = stalk(bdx, bh * grow, -lean * 0.5 + sw);
+  lilyBud(bp[0], bp[1], Z.lilyFlower * u * grow, -lean * 0.5 + sw);
+  const fp = stalk(fdx, fh * grow, lean + sw * 0.7);
+  lilyFlower(fp[0], fp[1], Z.lilyFlower * u * grow);
+}
+// --- điên điển ---
+function pinnate(x0, y0, ang, len, droop, nPair, lf, col, colHi, lw) {          // lá kép lông chim: cuống chính + các cặp lá chét
+  const x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len + droop * len;
+  const cx = x0 + Math.cos(ang) * len * 0.6, cy = y0 + Math.sin(ang) * len * 0.6;
+  ctx.strokeStyle = rgba(col); ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, x1, y1); ctx.stroke();
+  for (let i = 1; i <= nPair; i++) {
+    const k = i / (nPair + 0.5), p = qpt(x0, y0, cx, cy, x1, y1, k), q = qpt(x0, y0, cx, cy, x1, y1, k + 0.03);
+    const ta = Math.atan2(q[1] - p[1], q[0] - p[0]), L = lf * (1 - 0.35 * k);
+    [-1, 1].forEach((sd) => {
+      const a = ta + sd * 1.05;
+      ctx.fillStyle = rgba(sd < 0 ? colHi : col);
+      ctx.beginPath(); ctx.ellipse(p[0] + Math.cos(a) * L * 0.5, p[1] + Math.sin(a) * L * 0.5, L * 0.5, L * 0.19, a, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+}
+function peaFlower(x, y, sz, ang) {                                                // hoa họ đậu treo ngược: đài, cánh cờ, cánh bên
+  const P = ART.plant;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  ctx.fillStyle = P.dienCalyx; ctx.beginPath(); ctx.ellipse(0, sz * 0.15, sz * 0.16, sz * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = P.dienFlower; ctx.beginPath(); ctx.ellipse(sz * 0.12, sz * 0.55, sz * 0.42, sz * 0.4, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = P.dienFlowerDeep; ctx.beginPath(); ctx.ellipse(sz * 0.1, sz * 0.5, sz * 0.1, sz * 0.22, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = P.dienWing; ctx.beginPath(); ctx.ellipse(-sz * 0.16, sz * 0.78, sz * 0.26, sz * 0.16, 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function dienRaceme(x, y, side, u, t, ph, grow) {                                  // chùm hoa rủ từ nách lá
+  const P = ART.plant, sw = Math.sin(t * 1.3 + ph) * 0.06 * u;
+  const x1 = x + side * 0.22 * u + sw, y1 = y + 0.5 * u * grow, cx = x + side * 0.32 * u, cy = y + 0.05 * u;
+  ctx.strokeStyle = P.dienCalyx; ctx.lineWidth = Math.max(0.8, 0.02 * u);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(cx, cy, x1, y1); ctx.stroke();
+  [0.22, 0.4, 0.56, 0.7, 0.82].forEach((k, i) => {
+    const p = qpt(x, y, cx, cy, x1, y1, k);
+    peaFlower(p[0], p[1], ART.size.dienFlower * u * (1 - i * 0.09) * grow, -side * (0.55 - k * 0.35) + sw / u);
+  });
+  ctx.fillStyle = P.dienBud;
+  [0.92, 1].forEach((k) => { const p = qpt(x, y, cx, cy, x1, y1, k); ctx.beginPath(); ctx.ellipse(p[0], p[1], 0.03 * u, 0.055 * u, side * 0.4, 0, Math.PI * 2); ctx.fill(); });
+}
+function plantDienDien(o) {
+  const { u, r, wv, t, wilt, grow } = o, Z = ART.size, H = Z.dienDien * u;
+  const tips = [[-0.65 + r() * 0.2, 0.86 + r() * 0.08], [0.05 + r() * 0.15, 1], [0.6 + r() * 0.2, 0.84 + r() * 0.1]];
+  const leafR = []; for (let i = 0; i < 16; i++) leafR.push(r());
+  const sway = (y) => Math.sin(t * 0.9) * 0.16 * u * Math.pow(Math.max(0, -y) / H, 1.6);
+  const bark = plantCol("dienBark", wilt * 0.15), leaf = plantCol("dienLeaf", wilt * 0.35), leafHi = plantCol("dienLeafHi", wilt * 0.35);
+  underStem(0, wv(0), -0.15 * u, 3.6 * u, 0.1 * u, Math.max(2, 0.09 * u), bark);              // thân chìm trong nước lũ
+  underStem(0.05 * u, wv(0) + 0.3 * u, 0.4 * u, 3.2 * u, -0.1 * u, Math.max(1, 0.05 * u), bark);
+  const F = [0.05 * u + sway(-0.42 * H), -0.42 * H];
+  ctx.strokeStyle = rgba(bark); ctx.lineWidth = Math.max(2, 0.085 * u);
+  ctx.beginPath(); ctx.moveTo(0, wv(0)); ctx.quadraticCurveTo(-0.05 * u, -0.2 * H, F[0], F[1]); ctx.stroke();
+  const br = tips.map(([tx, ty]) => { const T = [tx * u + sway(-ty * H), -ty * H]; return { T, C: [(F[0] + T[0]) / 2 + tx * 0.1 * u, (F[1] + T[1]) / 2] }; });
+  ctx.lineWidth = Math.max(1.2, 0.05 * u);
+  br.forEach((b) => { ctx.beginPath(); ctx.moveTo(F[0], F[1]); ctx.quadraticCurveTo(b.C[0], b.C[1], b.T[0], b.T[1]); ctx.stroke(); });
+  const fronds = [], racemes = [];
+  let li = 0;
+  br.forEach((b, bi) => {
+    for (let k = 0; k < 4; k++) {
+      const p = qpt(F[0], F[1], b.C[0], b.C[1], b.T[0], b.T[1], 0.3 + k * 0.22), side = (k + bi) % 2 ? 1 : -1, rr = leafR[li++];
+      fronds.push({ x: p[0], y: p[1], ang: -Math.PI / 2 + side * (0.9 + rr * 0.5), len: (0.5 + rr * 0.25) * u * (1 - 0.12 * k), front: rr > 0.55 });
+      if (k === 1 || k === 3) racemes.push({ x: p[0], y: p[1], side: -side, ph: bi * 2 + k });
+    }
+    fronds.push({ x: b.T[0], y: b.T[1], ang: -Math.PI / 2 + (bi - 1) * 0.45, len: 0.42 * u, front: true, up: true });
+  });
+  const drawFr = (f) => pinnate(f.x, f.y, f.ang, f.len, f.up ? 0.1 : 0.3 + wilt * 0.25, 9, 0.13 * u, f.front ? leafHi : leaf, f.front ? mixRGB(ART.plant.dienLeafHi, "#e8f0c0", 0.25) : leafHi, Math.max(0.8, 0.018 * u));
+  fronds.filter((f) => !f.front).forEach(drawFr);
+  if (!wilt) racemes.forEach((rc) => dienRaceme(rc.x, rc.y, rc.side, u, t, rc.ph, grow));   // hái rồi thì hết chùm hoa
+  fronds.filter((f) => f.front).forEach(drawFr);
+}
+// --- kèo nèo ---
+function keoLeaf(x, y, ang, L, face, c, hi, vein) {                                 // phiến bầu dục, gân cong song song mép
+  const W = L * 0.36 * face;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  const g = ctx.createLinearGradient(-W, 0, W, 0); g.addColorStop(0, rgba(c)); g.addColorStop(0.5, rgba(hi)); g.addColorStop(1, rgba(c));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(W * 1.25, -L * 0.15, W * 1.05, -L * 0.85, 0, -L);
+  ctx.bezierCurveTo(-W * 1.05, -L * 0.85, -W * 1.25, -L * 0.15, 0, 0); ctx.fill();
+  ctx.strokeStyle = rgba(vein, 0.75); ctx.lineWidth = Math.max(0.8, L * 0.025);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -L * 0.97); ctx.stroke();
+  ctx.lineWidth = Math.max(0.6, L * 0.012);
+  [0.45, 0.8].forEach((k) => [-1, 1].forEach((sd) => { ctx.beginPath(); ctx.moveTo(0, -L * 0.04); ctx.bezierCurveTo(sd * W * k * 1.2, -L * 0.2, sd * W * k * 1.05, -L * 0.75, 0, -L * 0.96); ctx.stroke(); }));
+  ctx.restore();
+}
+function keoFlower(x, y, sz, ang) {                                                 // 3 cánh tròn vàng kem, tâm vàng đậm
+  const P = ART.plant;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  [-0.8, 0.8, 0].forEach((a) => {
+    ctx.save(); ctx.rotate(a);
+    const g = ctx.createLinearGradient(0, 0, 0, -sz * 0.6); g.addColorStop(0, "#fffbe2"); g.addColorStop(1, P.keoFlower);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -sz * 0.3, sz * 0.26, sz * 0.32, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  });
+  ctx.fillStyle = P.keoFlowerC; ctx.beginPath(); ctx.ellipse(0, -sz * 0.2, sz * 0.16, sz * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#8a5a2a"; ctx.beginPath(); ctx.ellipse(0, -sz * 0.22, sz * 0.07, sz * 0.035, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function plantKeoNeo(o) {
+  const { u, r, wv, t, wilt, grow } = o, Z = ART.size, H = Z.keoNeo * u, P = ART.plant;
+  const st = [];
+  for (let i = 0; i < 7; i++) { const k = (i / 6) * 2 - 1; st.push({ a: k * 0.6 + (r() - 0.5) * 0.15, h: (0.65 + r() * 0.35) * (1 - Math.abs(k) * 0.25), face: 0.35 + r() * 0.65, tw: (r() - 0.5) * 0.6, base: k * 0.12, cut: r() < 0.7 }); }
+  const flA = (r() - 0.5) * 0.2, flH = 1.05 + r() * 0.1;
+  const stemC = plantCol("keoStem", wilt * 0.4), stemD = plantCol("keoStemDark", wilt * 0.4), leaf = plantCol("keoLeaf", wilt * 0.5), leafHi = plantCol("keoLeafHi", wilt * 0.5), vein = plantCol("keoVein", wilt * 0.5);
+  st.forEach((p, i) => underStem(p.base * u, wv(p.base), p.base * 0.4 * u, 2.2 * u, Math.sin(t * 0.5 + i) * 0.08 * u, Math.max(1.2, 0.06 * u), stemD));
+  const sw = Math.sin(t * 0.8) * 0.07;
+  const order = st.map((p, i) => i).sort((a, b) => st[a].face - st[b].face);   // lá nghiêng (hẹp) vẽ trước, lá xòe vẽ sau
+  order.forEach((i) => {
+    const p = st[i], isCut = wilt && p.cut;
+    const hh = (isCut ? 0.14 : p.h * (wilt ? 0.55 : grow)) * H;
+    const a = p.a + sw * (hh / H), x0 = p.base * u, y0 = wv(p.base);
+    const tx = x0 + Math.sin(a) * hh, ty = y0 - Math.cos(a) * hh;
+    ctx.strokeStyle = rgba(i % 2 ? stemC : stemD); ctx.lineWidth = Math.max(1.5, 0.065 * u);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0 + Math.sin(a) * hh * 0.25, y0 - hh * 0.6, tx, ty); ctx.stroke();
+    if (isCut) { ctx.fillStyle = rgba(mixRGB(P.keoVein, P.dead, 0.2)); ctx.beginPath(); ctx.ellipse(tx, ty, 0.035 * u, 0.015 * u, a, 0, Math.PI * 2); ctx.fill(); return; }   // mặt cắt
+    keoLeaf(tx, ty, a + p.tw + Math.sign(p.a) * 0.35, Z.keoLeaf * u * (wilt ? 0.6 : grow), p.face, leaf, leafHi, vein);
+  });
+  if (wilt) return;                                                                   // ngồng hoa đã bị hái
+  const a = flA + sw * 1.2, hh = flH * H * grow, y0 = wv(0), tx = Math.sin(a) * hh, ty = y0 - Math.cos(a) * hh;
+  ctx.strokeStyle = rgba(stemC); ctx.lineWidth = Math.max(1.3, 0.055 * u);
+  ctx.beginPath(); ctx.moveTo(0, y0); ctx.quadraticCurveTo(0, y0 - hh * 0.5, tx, ty); ctx.stroke();
+  ctx.lineWidth = Math.max(0.8, 0.025 * u);
+  [-1, 1].forEach((sd) => {                                                           // 2 nụ rủ
+    const bx = tx + sd * 0.17 * u, by = ty + 0.12 * u;
+    ctx.strokeStyle = rgba(stemC); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + sd * 0.12 * u, ty - 0.04 * u, bx, by); ctx.stroke();
+    ctx.fillStyle = rgba(stemD); ctx.beginPath(); ctx.ellipse(bx, by + 0.04 * u, 0.045 * u, 0.075 * u, sd * 0.3, 0, Math.PI * 2); ctx.fill();
+  });
+  [[-0.18, -0.1], [0.19, -0.08], [0.01, -0.2]].forEach(([dx, dy]) => {               // 3 hoa trên tán
+    const fx = tx + dx * u * grow, fy = ty + dy * u * grow;
+    ctx.strokeStyle = rgba(stemC); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(fx, fy); ctx.stroke();
+    keoFlower(fx, fy, Z.keoFlower * u * grow, dx * 2.2);
+  });
+}
+// một điểm hái: chọn loài, thêm bóng, gợn nước, hiệu ứng hái / nở lại
+function artNode(v, n) {
+  const { s: u, sx, sy, t, amp, w } = v;
+  const x = n.pos[0], px = sx(x), oy = sy(n.pos[1] || 0);
+  if (px < -4 * u || px > w + 4 * u) return;
+  const ready = n.ready !== false, now = performance.now() / 1000, seed = hashStr(n.id);
+  let fx = NODEFX.get(n.id);
+  if (!fx || fx.ready !== ready) { fx = { ready, at: fx ? now : -99 }; NODEFX.set(n.id, fx); }
+  const age = now - fx.at, g = Math.min(1, age / 0.8);
+  const o = { u, r: mulberry32(seed), t: t + (seed % 100) * 0.1, wilt: ready ? 0 : 1, grow: ready ? 0.3 + 0.7 * g * g * (3 - 2 * g) : 1, wv: (dx) => waveY(x + dx, t, amp) * u };
+  ctx.save(); ctx.translate(px, oy); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  if (ready && fx.at > 0 && age < 1.2) {                                              // vừa mọc lại: quầng sáng nhẹ
+    const gl = ctx.createRadialGradient(0, -0.5 * u, 0, 0, -0.5 * u, 1.5 * u);
+    gl.addColorStop(0, `rgba(255,240,170,${(0.45 * (1 - age / 1.2)).toFixed(3)})`); gl.addColorStop(1, "rgba(255,240,170,0)");
+    ctx.fillStyle = gl; ctx.fillRect(-1.5 * u, -2 * u, 3 * u, 3 * u);
+  }
+  ctx.fillStyle = "rgba(40,26,10,.18)"; ctx.beginPath(); ctx.ellipse(0, o.wv(0) + 0.2 * u, 1.1 * u, 0.16 * u, 0, 0, Math.PI * 2); ctx.fill();   // bóng tán trên nước
+  if (n.kind === "bong_sung") plantLily(o);
+  else if (n.kind === "bong_dien_dien") plantDienDien(o);
+  else if (n.kind === "keo_neo") plantKeoNeo(o);
+  else { ctx.globalAlpha = ready ? 1 : 0.35; ctx.fillStyle = kc(n.kind); ctx.beginPath(); ctx.ellipse(0, o.wv(0) - 0.1 * u, 0.9 * u, 0.4 * u, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+  for (let k = 0; k < 2; k++) {                                                       // gợn nước tỏa quanh gốc
+    const ph = (t * 0.35 + k * 0.5 + (seed % 10) * 0.1) % 1;
+    ctx.strokeStyle = ART.plant.ripple + (0.4 * (1 - ph)).toFixed(3) + ")"; ctx.lineWidth = Math.max(1, 0.03 * u);
+    ctx.beginPath(); ctx.ellipse(0, o.wv(0) + 0.03 * u, (0.6 + ph * 1.4) * u, (0.05 + ph * 0.1) * u, 0, 0, Math.PI); ctx.stroke();
+  }
+  if (!ready && age < 0.7) {                                                          // vừa hái: nước bắn
+    ctx.fillStyle = `rgba(255,244,225,${(0.8 * (1 - age / 0.7)).toFixed(2)})`;
+    for (let k = 0; k < 8; k++) {
+      const a = -Math.PI / 2 + (k - 3.5) * 0.28, sp = 2.2 + (k % 3) * 0.6;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * sp * age * u, o.wv(0) + (Math.sin(a) * sp * age + 4.5 * age * age) * u, Math.max(1, 0.05 * u), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (SHOW_LOG) text(n.id, 0, -2.3 * u, { size: 10, align: "center", color: "#234" });   // mã id chỉ hiện khi bật nhật ký (H)
+  if (!ready && n.regrow_ticks) text("mọc lại " + Math.ceil(n.regrow_ticks / 60) + "s", 0, o.wv(0) + 0.9 * u, { size: 11, align: "center", color: "rgba(255,244,225,.85)" });
   ctx.restore();
 }
 // bản đồ nhỏ toàn sông (góc trên phải): vì camera đã phóng to
@@ -1734,15 +2001,8 @@ function drawGather(w, h) {
   };
   ctx.save(); ctx.beginPath(); ctx.rect(0, top, w, viewH); ctx.clip();
   artGatherBack(art);
-  // nút hái
-  (snap.nodes || []).forEach((n) => {
-    const ready = n.ready !== false;
-    ctx.globalAlpha = ready ? 1 : 0.35;
-    ctx.fillStyle = kc(n.kind); ctx.beginPath(); ctx.ellipse(sx(n.pos[0]), sy(n.pos[1]) - 0.1 * s, 0.9 * s, 0.4 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-    text(n.id, sx(n.pos[0]), sy(n.pos[1]) - 0.7 * s, { size: 10, align: "center", color: "#234" });
-    if (!ready && n.regrow_ticks) text(Math.ceil(n.regrow_ticks / 60) + "s", sx(n.pos[0]), sy(n.pos[1]) + 1.1 * s, { size: 10, align: "center", color: "#fff" });
-  });
+  // nút hái: cây thật trên mặt nước (khối ART: artNode)
+  (snap.nodes || []).forEach((n) => artNode(art, n));
   // đàn cá
   (snap.fish || []).forEach((f) => {
     const fp = smoothPos("gather:fish:" + f.id, f.pos);
