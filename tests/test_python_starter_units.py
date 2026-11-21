@@ -43,11 +43,15 @@ class Units(unittest.TestCase):
             with self.assertRaises(BadInput):
                 load_frames(write_json(w.path("i.json"), frames({"tick": 0, "move": [2, 0]})))
 
-    def test_catch_is_a_v10_button_and_attack_is_not(self):
+    def test_v11_buttons_known_and_unknown_rejected(self):
+        # Đổi từ v1.0: Test Contract v1.1 mục 4.2 thêm pause/shop_done/attack/photo và `buy` (chuỗi).
+        # `attack` khi mở rộng Lao xua chưa bật là "đúng kiểu nhưng mở rộng chưa bật -> bỏ qua", không còn mã 2.
         with Workdir() as w:
-            load_frames(write_json(w.path("i.json"), frames({"tick": 0, "catch": True})))
-            with self.assertRaises(BadInput):
-                load_frames(write_json(w.path("j.json"), frames({"tick": 0, "attack": True})))
+            load_frames(write_json(w.path("i.json"), frames({"tick": 0, "catch": True, "pause": True, "attack": True,
+                                                             "photo": False, "shop_done": True, "buy": "oxygen"})))
+            for bad in ({"tick": 0, "jump": True}, {"tick": 0, "buy": ""}, {"tick": 0, "buy": 1}, {"tick": 0, "pause": 1}):
+                with self.assertRaises(BadInput):
+                    load_frames(write_json(w.path("j.json"), frames(bad)))
 
     def test_live_inputs_keep_fast_tap_edge(self):
         li = LiveInputs()

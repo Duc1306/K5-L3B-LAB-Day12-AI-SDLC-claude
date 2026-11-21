@@ -12,7 +12,7 @@ from .errors import BadInput
 from .inputs import load_frames
 from .inventory import read_inventory
 from .runner import run
-from .scenario import load_scenario
+from .scenario import load_day_scenario, load_scenario
 
 
 class _Parser(argparse.ArgumentParser):
@@ -42,10 +42,16 @@ def main(argv=None) -> int:
     p.add_argument("--inventory")
     p.add_argument("--inventory-out", dest="inventory_out")
     p.add_argument("--snapshot-every", dest="snapshot_every", type=_int("snapshot-every"), default=10)
+    p.add_argument("--days", type=_int("days"), default=None)  # v1.1: chỉ với day, 1..5, mặc định 1
     a = p.parse_args(argv)
     try:
-        if a.mode == "day":
-            raise BadInput("--mode day chưa hỗ trợ ở contract v1.0 (có từ v1.1)")
+        if a.days is not None and a.mode != "day":
+            raise BadInput("--days chỉ dùng với --mode day")
+        days = 1 if a.days is None else a.days
+        if not (1 <= days <= 5):
+            raise BadInput("--days phải là số nguyên từ 1 đến 5")
+        if a.mode == "day" and (a.inventory or a.inventory_out):
+            raise BadInput("--inventory / --inventory-out dành cho hai mode độc lập, không dùng với day")
         if a.ticks < 0:
             raise BadInput("--ticks phải >= 0")
         if a.snapshot_every <= 0:
@@ -61,7 +67,7 @@ def main(argv=None) -> int:
             raise BadInput("các đường dẫn đầu vào/đầu ra phải khác nhau")
         contract = load_contract()
         tuning = contract["tuning"]
-        scenario = load_scenario(a.scenario, a.mode, tuning)
+        scenario = load_day_scenario(a.scenario, tuning, days) if a.mode == "day" else load_scenario(a.scenario, a.mode, tuning)
         frames = load_frames(a.inputs)
         inventory = read_inventory(a.inventory) if a.inventory else None
         if inventory is not None and "stock" in scenario:
@@ -71,7 +77,7 @@ def main(argv=None) -> int:
         return 2
     try:
         run(a.mode, tuning, scenario, a.seed, frames, a.ticks, a.out, a.snapshot_every,
-            inventory=inventory, inventory_out=a.inventory_out)
+            inventory=inventory, inventory_out=a.inventory_out, days=days)
     except BadInput as e:  # lỗi mức luật phát hiện lúc dựng sim
         sys.stderr.write(f"đầu vào sai: {e}\n")
         return 2
