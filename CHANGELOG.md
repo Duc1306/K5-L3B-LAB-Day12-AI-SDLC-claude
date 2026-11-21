@@ -2,13 +2,40 @@
 
 ## Unreleased
 
-### Thêm — mở rộng Cháy món (`burn`)
+## [v1.0.0] / [phase-4] — contract v1.3 "Phát hành" (TICKET-04)
+
+### Thêm
+- `contract_version:"1.3"`. Gốc manifest khai `bench_cmd: python3 -m chonoi.bench` và `soak_cmd: python3 -m chonoi.soak`. Gameplay, tuning, kho và JSONL **giữ nguyên v1.2**.
+- **Benchmark có render** (`chonoi/bench.py`):
+  - Cảnh buổi sáng lõi seed 42, Út Sen đứng yên ở bến, 1280×720.
+  - Chạy Chromium/Chrome/Edge không giao diện, làm nóng 3 s rồi đo `--duration` giây.
+  - Ghi `bench.json` 5 trường `avg_fps, p1_low_fps, frames, measured_s, load_ms`.
+- **Soak headless** (`chonoi/soak.py`):
+  - Chạy N Ngày trong một tiến trình bằng bot tất định. Kế hoạch D1–D5 lặp ở Ngày 6–10.
+  - `soak.json` gồm `days, days_completed, crashes, results[{day, earned, reputation, score}], duration_s`.
+- **Cảnh báo dễ nhận biết:** "Thủy quái gần!", "Oxy sắp hết! / Hết hơi!", "Khách sắp giận! Bàn …", mỗi cảnh báo có biểu tượng vẽ bằng canvas. Trên đầu khách có nhãn "Sắp giận".
+- **Chế độ tương phản cao:** phím **C** hoặc `?tuong_phan=1`, nhớ trong trình duyệt. Cảnh báo thành hộp đen viền vàng chữ trắng, viền màn hình tím khi có thủy quái, chữ HUD viền đen dày, canvas tăng tương phản.
+- README: yêu cầu môi trường, 3 lệnh chạy từ clone sạch, điều khiển, test, headless, bench, soak, giới hạn đã biết. Release notes ở `docs/release/v1.0.0.md`. Bản đóng gói `cho-noi-v1.0.0.zip` đính kèm Release.
+
+### Đổi
+- `DaySim`: kế hoạch Ngày n > 5 lấy D((n−1) mod 5 + 1), phục vụ soak. Headless `--days` vẫn giới hạn 1..5 như v1.1.
+- Hiệu năng HUD/cảnh lặn, hình vẽ không đổi:
+  - Bảng gỗ HUD (`shadowBlur`) vẽ một lần vào canvas phụ rồi `drawImage`.
+  - Gân lá dừa nước và lá chét điên điển gộp thành một path cho mỗi màu.
+
+### Test
+- Thêm `tests/test_p4_release.py` (9 ca): manifest v1.3, soak (cấu trúc, tất định, tham số sai, chu kỳ kế hoạch), công thức bench, chuỗi cảnh báo.
+- Đổi vì luật mới: `test_rules_p2_gather`, `test_rules_p3_fresh` nhận `contract_version` 1.3 (gameplay vẫn v1.2).
+
+ "Mùa Nước Nổi" (TICKET-03)
+
+### Mở rộng Cháy món (`burn`, hadatttt)
 - Manifest khai `"extensions": ["burn"]` và `tuning.quan.burn_s: 20`. `chonoi/contract.py` kiểm hai chỗ khớp nhau, từ chối mã mở rộng chưa làm.
 - Món chín để quá 1200 tick (20 s) trên bếp thì cháy: bỏ món, bếp rảnh ngay, giữ lại nguyên liệu cho đơn (`reserved`) hoặc `unfulfillable` nếu thiếu. Event `dish_burnt {stove_id, order_id, dish_id, order_status}`. Đúng 1200 tick vẫn bưng được.
 - UI: khói, chữ "cháy món!" ở bếp và thoại của Út Sen khi có `dish_burnt`.
 - `tests/test_ext_burn.py` (11 test), bằng chứng ở `docs/proof/ext-burn/`.
 
-### Đổi
+### Nhóm
 - `TEAM.md`: nhóm 5 người; `team: "claude"`, `team_size: 5`.
 
 ## [phase-3] — contract v1.2 "Mùa Nước Nổi" (TICKET-03)

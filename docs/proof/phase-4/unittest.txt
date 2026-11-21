@@ -39,6 +39,15 @@ test_state_input_and_clean_stop (test_live.LiveServerTest.test_state_input_and_c
 test_buy_sai_kieu_bi_tu_choi (test_ngay_dem.NgayDemLiveTest.test_buy_sai_kieu_bi_tu_choi) ... ok
 test_pause_dung_dong_ho (test_ngay_dem.NgayDemLiveTest.test_pause_dung_dong_ho) ... ok
 test_vong_ngay_qua_http_shop_va_ngay_ke (test_ngay_dem.NgayDemLiveTest.test_vong_ngay_qua_http_shop_va_ngay_ke) ... ok
+test_cong_thuc_5_truong (test_p4_release.BenchMath.test_cong_thuc_5_truong) ... ok
+test_p1_low_lay_1_phan_tram_cham_nhat (test_p4_release.BenchMath.test_p1_low_lay_1_phan_tram_cham_nhat) ... ok
+test_tham_so_sai (test_p4_release.BenchMath.test_tham_so_sai) ... ok
+test_gameplay_va_kho_van_theo_v12 (test_p4_release.Manifest.test_gameplay_va_kho_van_theo_v12) ... ok
+test_v13_khai_bench_va_soak (test_p4_release.Manifest.test_v13_khai_bench_va_soak) ... ok
+test_ke_hoach_D1_D5_lap_o_ngay_6_10 (test_p4_release.Soak.test_ke_hoach_D1_D5_lap_o_ngay_6_10) ... ok
+test_soak_cau_truc_va_tat_dinh (test_p4_release.Soak.test_soak_cau_truc_va_tat_dinh) ... ok
+test_tham_so_sai_ma_2 (test_p4_release.Soak.test_tham_so_sai_ma_2) ... ok
+test_trang_co_3_canh_bao_tuong_phan_cao_va_bench (test_p4_release.WarningsUI.test_trang_co_3_canh_bao_tuong_phan_cao_va_bench) ... ok
 test_bad_frames_raise (test_python_starter_units.Units.test_bad_frames_raise) ... ok
 test_id_allocator_continues_after_max (test_python_starter_units.Units.test_id_allocator_continues_after_max) ... ok
 test_id_sorting (test_python_starter_units.Units.test_id_sorting) ... ok
@@ -199,6 +208,6 @@ test_too_few_members (test_team_check.TeamCheck.test_too_few_members) ... ok
 test_wrong_size_duplicate_and_outsider (test_team_check.TeamCheck.test_wrong_size_duplicate_and_outsider) ... ok
 
 ----------------------------------------------------------------------
-Ran 191 tests in 46.671s
+Ran 200 tests in 47.453s
 
 OK

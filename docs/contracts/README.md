@@ -137,3 +137,4 @@ Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`
 | 2026-11-21 | Thêm mục 3b: `day`, Shop, pause theo Test Contract v1.1. | TICKET-02 | (cả nhóm xác nhận) |
 | 2026-11-21 | Mục 3b: ghi snapshot đổi pha và cách cấp id xuyên Ngày cho khớp code `runner.py` / `sim/day.py`. Hành vi không đổi. | Đối chiếu sau merge | Shirou191 |
 | 2026-11-21 | Mở rộng **Cháy món** (`extensions: ["burn"]`, `burn_s: 20`, event `dish_burnt`). Không đổi schema kho, không đổi luật lõi khi `burn_s` null. | Nhóm lên 5 người: TICKET-02/03 yêu cầu ≥ 1 mục mở rộng | hadatttt |
+| 2026-11-21 | v1.3 (Phase 4): thêm `bench_cmd`, `soak_cmd` ở gốc manifest. Gameplay/tuning/kho/JSONL giữ nguyên v1.2. | TICKET-04 | Duc1306 (+ TADIZB) |

@@ -5,6 +5,7 @@
 ## Lệnh
 - Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
 - Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
+- Benchmark có render (v1.3, cần Chromium/Chrome/Edge): `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json` · soak headless: `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`
 - Bằng chứng Phase 3 (smoke bàn giao kho v1.2, ngưỡng 30, `day`, tất định): `python3 tools/proof_phase3.py` → `docs/proof/phase-3/checks.md`
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R, H nhật ký)
 - Headless chế độ ngày (v1.1): `python3 -m chonoi.headless --mode day --seed 1 --days 2 --ticks 50000 --out day.jsonl`
