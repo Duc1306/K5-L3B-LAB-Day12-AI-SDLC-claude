@@ -6,7 +6,8 @@
 - Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
 - Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R, H nhật ký)
-- Chơi liền mạch sáng → tối → sáng ngày mới… (một tiến trình, kho qua file đúng mục G; chưa phải `--mode day` của Phase 2): `python3 -m chonoi.ngay_dem [--so-ngay N] [--nghi 4] [--port 8000]`
+- Headless chế độ ngày (v1.1): `python3 -m chonoi.headless --mode day --seed 1 --days 2 --ticks 50000 --out day.jsonl`
+- Chơi trọn vòng ngày trên trình duyệt (chính `--mode day`: menu, intro, pause P/Esc, Shop phím 1/2/E, tổng kết): `python3 -m chonoi.ngay_dem [--so-ngay 5] [--scenario s.json] [--port 8000]`; thêm `?vao=1` vào URL để bỏ menu, `?thu=1` bỏ cả intro
 - Windows: đặt `PYTHONIOENCODING=utf-8` trước khi chạy live, nếu không máy chủ lỗi khi in tiếng Việt.
 
 ## Cấu trúc & quy ước

@@ -1,6 +1,6 @@
-"""Lối tắt giữ cho lệnh cũ: chơi liền mạch sáng → tối → sáng… Xem `chonoi/ngay_dem.py`.
+"""Lối tắt giữ cho lệnh cũ: chơi trọn vòng ngày (chế độ day). Xem `chonoi/ngay_dem.py`.
 
-    python tools/choi_ngay_dem.py [--port 8000] [--seed 1] [--so-ngay N] [--nghi 4]
+    python tools/choi_ngay_dem.py [--port 8000] [--seed 1] [--so-ngay 5] [--scenario s.json]
 
 Tương đương: python -m chonoi.ngay_dem ...
 """

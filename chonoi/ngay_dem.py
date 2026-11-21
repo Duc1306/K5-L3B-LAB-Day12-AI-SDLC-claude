@@ -1,155 +1,108 @@
-"""Chơi LIỀN MẠCH trên trình duyệt: buổi sáng (gather) → buổi tối (quán) → sáng ngày mới → … trên CÙNG một cổng.
+"""Chơi trọn vòng ngày trên trình duyệt bằng CHÍNH chế độ `day` của luật (chonoi/sim/day.py):
 
-    python3 -m chonoi.ngay_dem [--port 8000] [--seed 1] [--so-ngay N] [--nghi 4]
+    python3 -m chonoi.ngay_dem [--port 8000] [--seed 1] [--so-ngay 5] [--scenario s.json]
 
-Module của nhóm (không sửa khung `chonoi/live.py`): một tiến trình giữ một `LiveGame` đang chạy và tự thay
-bằng buổi kế tiếp khi buổi hiện tại kết thúc. Kho đi từ sáng sang tối ĐÚNG như Test Contract mục G:
-gather ghi file kho khi `gather_end` (`--inventory-out`), quán đọc lại file đó (`--inventory`).
-
-Chưa phải `--mode day` của Test Contract v1.1 (Phase 2): mỗi buổi tối vẫn là một quán độc lập
-(tiền bắt đầu 0, uy tín theo tuning, chỉ có kho của sáng hôm đó). Tổng thu qua các ngày chỉ để hiển thị.
+DayIntro → gather → EveningIntro → quán → DayResult → Shop → Ngày kế … → tổng kết (TICKET-02 mục 2).
+Máy chủ dùng lại `LiveGame`/`LiveServer` của starter (không sửa `chonoi/live.py`), chỉ mở rộng:
+- input v1.1: `pause`, `shop_done`, `buy` (chuỗi, một lần) ngoài `interact`/`catch`;
+- snapshot có `meta` theo PHA (gather/quan) và bảng `shop` để trình duyệt vẽ Shop.
+Menu, intro và kết quả Ngày do trình duyệt vẽ; trình duyệt dùng nút `pause` của luật để dừng đồng hồ khi hiện intro.
 """
 
 import argparse
 import json
-import os
 import sys
-import tempfile
-import threading
 import time
 
 from .contract import load_contract
 from .errors import BadInput
-from .inventory import read_inventory
+from .inputs import BUTTONS_V11, LiveInputs
 from .live import LiveGame, LiveServer
-from .scenario import load_scenario
+from .runner import Session
+from .scenario import load_day_scenario
 
-NEXT = {"gather": "quan", "quan": "gather"}
+LIVE_BUTTONS = ("interact", "catch", "pause", "shop_done")
 
 
-class DayGame:
-    """Cùng giao diện với LiveGame (state_json / set_input / restart / start / stop) để dùng chung LiveServer."""
+class DayInputs(LiveInputs):
+    """LiveInputs + `buy` (một lần, như frame headless)."""
 
-    def __init__(self, tuning, seed=1, days=None, pause_s=4.0, workdir=None, scenario_paths=None, log=None):
-        self.tuning = tuning
-        self.seed = seed
-        self.days = days                      # None = chơi mãi
-        self.pause_s = pause_s                # nghỉ để người chơi đọc bảng kết thúc buổi
-        self.workdir = workdir or tempfile.mkdtemp(prefix="chonoi-ngay-")
-        self.scenario_paths = scenario_paths or {}   # chỉ để test dựng tình huống: {"gather": file, "quan": file}
-        self.log = log or (lambda msg: None)  # main() truyền print; test để im
-        self.day = 1
-        self.total_earned = 0                 # cộng `earned` của các buổi tối (chỉ hiển thị)
-        self.history = []                     # [{day, kho, earned, reputation}]
-        self._lock = threading.Lock()
-        self._stop = threading.Event()
-        self._switch_at = None
-        self._watch = None
-        self.game = self._make("gather")
+    def __init__(self):
+        super().__init__(BUTTONS_V11)
+        self._buy = None
 
-    # --- dựng buổi -----------------------------------------------------------------
-    def kho_path(self, day=None):
-        return os.path.join(self.workdir, f"kho-ngay-{day or self.day}.json")
+    def set(self, move=None, buy=None, **buttons):
+        super().set(move, **buttons)
+        if buy:
+            self._buy = buy
 
-    def _make(self, mode):
-        scenario = load_scenario(self.scenario_paths.get(mode), mode, self.tuning)
-        seed = self.seed + self.day - 1
-        if mode == "gather":
-            path = self.kho_path()
-            if os.path.exists(path):
-                os.remove(path)
-            return LiveGame("gather", self.tuning, scenario, seed, inventory_out=path)
-        return LiveGame("quan", self.tuning, scenario, seed, inventory=read_inventory(self.kho_path()))
+    def advance(self):
+        st = super().advance()
+        st.buy, self._buy = self._buy, None
+        return st
 
-    # --- vòng theo dõi: buổi xong -> nghỉ -> buổi kế ---------------------------------
-    def start(self):
-        self.game.start()
-        self._watch = threading.Thread(target=self._loop, name="chonoi-ngay-dem", daemon=True)
-        self._watch.start()
 
-    def stop(self):
-        self._stop.set()
-        if self._watch:
-            self._watch.join(timeout=2)
-        with self._lock:
-            self.game.stop()
+class DayLiveGame(LiveGame):
+    def __init__(self, tuning, scenario, seed, days=5):
+        self.days = days                      # đặt trước vì LiveGame.__init__ gọi _reset()
+        super().__init__("day", tuning, scenario, seed)
 
-    def _loop(self):
-        while not self._stop.wait(0.05):
-            with self._lock:
-                self._maybe_switch()
+    def _reset(self):
+        mode, tuning, scenario, seed, _ = self._args
+        self.session = Session(mode, tuning, scenario, seed, None, self.days)
+        self.inputs = DayInputs()
+        self.events = self.session.start_rows()   # day_start / day_plan / phase_start(gather) ở tick 0
+        self._saved = True
+        self.error = None
 
-    def _finished(self, g):
-        with g._lock:
-            return g.session.done, g.session.sim.reason, g.error
-
-    def _maybe_switch(self):
-        done, reason, error = self._finished(self.game)
-        if not done or error or reason == "error":     # luật lỗi: đứng yên để người chơi thấy lỗi / bấm R
-            self._switch_at = None
-            return
-        if self.game.mode == "gather" and not os.path.exists(self.kho_path()):
-            return                                     # chờ LiveGame ghi xong file kho
-        if self.days is not None and self.game.mode == "quan" and self.day >= self.days:
-            return                                     # hết số ngày: giữ bảng kết thúc
-        now = time.monotonic()
-        if self._switch_at is None:
-            self._switch_at = now + self.pause_s
-            return
-        if now < self._switch_at:
-            return
-        self._advance()
-
-    def _advance(self):
-        old = self.game
-        if old.mode == "quan":
-            snap = json.loads(old.state_json())
-            self.total_earned += int(snap.get("earned") or 0)
-            self.history.append({"day": self.day, "kho": read_inventory(self.kho_path()),
-                                 "earned": snap.get("earned"), "reputation": snap.get("reputation")})
-            self.day += 1
-        old.stop()
-        self.game = self._make(NEXT[old.mode])
-        self.game.start()
-        self._switch_at = None
-        self.log(f"Ngày {self.day}: {'buổi sáng — lặn hái' if self.game.mode == 'gather' else 'buổi tối — mở quán'}")
-
-    # --- API cho LiveServer handler ---------------------------------------------------
     def state_json(self) -> bytes:
         with self._lock:
-            snap = json.loads(self.game.state_json())
-            left = None if self._switch_at is None else max(0.0, self._switch_at - time.monotonic())
-            last = self.days is not None and self.day >= self.days and self.game.mode == "quan"
-            snap["day"] = {"n": self.day, "total_earned": self.total_earned, "next": None if last else NEXT[self.game.mode],
-                           "next_in_s": None if last else left, "days": self.days}
+            snap = self.session.snapshot()
+            ph = snap.get("phase")
+            snap["meta"] = self.tuning[ph] if ph in ("gather", "quan") else {}
+            snap["shop"] = self.tuning["shop"]
+            snap["menu"] = self.tuning["menu"]
+            snap["days"] = self.days
+            snap["days_completed"] = self.session.sim.days_completed
+            snap["events"] = list(self.events)
+            snap["finished"] = self.session.done
+            snap["reason"] = self.session.sim.reason if self.session.done else None
+            snap["error"] = self.error
             return json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
     def set_input(self, body: dict):
+        move = body.get("move")
+        if move is not None:
+            ok = (isinstance(move, list) and len(move) == 2 and
+                  all(isinstance(c, (int, float)) and not isinstance(c, bool) and abs(c) <= 1 for c in move))
+            if not ok:
+                raise ValueError("move phải là [a, b] trong [-1, 1]")
+        buttons = {}
+        for b in LIVE_BUTTONS:
+            if b in body:
+                if not isinstance(body[b], bool):
+                    raise ValueError(f"{b} phải là boolean")
+                buttons[b] = body[b]
+        buy = body.get("buy")
+        if buy is not None and (not isinstance(buy, str) or not buy):
+            raise ValueError("buy phải là chuỗi khác rỗng")
         with self._lock:
-            g = self.game
-        g.set_input(body)
-
-    def restart(self):
-        """R: chơi lại BUỔI hiện tại (cùng kho buổi sáng nếu đang ở quán)."""
-        with self._lock:
-            if self.game.mode == "gather" and os.path.exists(self.kho_path()):
-                os.remove(self.kho_path())
-            self.game.restart()
-            self._switch_at = None
+            self.inputs.set(move, buy=buy, **buttons)
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="chonoi.ngay_dem", description="Chơi liền mạch sáng → tối → sáng… (bản nối của nhóm, chưa phải --mode day).")
+    p = argparse.ArgumentParser(prog="chonoi.ngay_dem", description="Chơi trọn vòng ngày (chế độ day) trên trình duyệt.")
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--port", type=int, default=8000, help="0 = cổng ngẫu nhiên")
     p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--so-ngay", dest="so_ngay", type=int, default=None, help="số ngày (mặc định chơi mãi)")
-    p.add_argument("--nghi", type=float, default=4.0, help="số giây nghỉ giữa hai buổi")
+    p.add_argument("--so-ngay", dest="so_ngay", type=int, default=5, help="số Ngày (1..5, mặc định 5)")
+    p.add_argument("--scenario", help="scenario của --mode day (khối day/gather/quan)")
     a = p.parse_args(argv)
     try:
-        if a.so_ngay is not None and a.so_ngay < 1:
-            raise BadInput("--so-ngay phải ≥ 1")
-        game = DayGame(load_contract()["tuning"], a.seed, a.so_ngay, max(0.0, a.nghi), log=lambda m: print(m, flush=True))
+        if not (1 <= a.so_ngay <= 5):
+            raise BadInput("--so-ngay phải từ 1 đến 5")
+        tuning = load_contract()["tuning"]
+        game = DayLiveGame(tuning, load_day_scenario(a.scenario, tuning, a.so_ngay), a.seed, a.so_ngay)
         server = LiveServer(game, a.host, a.port)
     except BadInput as e:
         sys.stderr.write(f"đầu vào sai: {e}\n")
@@ -158,9 +111,7 @@ def main(argv=None) -> int:
         sys.stderr.write(f"không mở được cổng {a.port} (đang có máy chủ khác chạy? thử --port 8765): {e}\n")
         return 1
     server.start()
-    print(f"Mở trình duyệt tại {server.url}  (chơi nối ngày-đêm, seed {a.seed}). Ctrl+C để dừng.", flush=True)
-    print(f"File kho mỗi ngày: {game.workdir}", flush=True)
-    print("Ngày 1: buổi sáng — lặn hái", flush=True)
+    print(f"Mở trình duyệt tại {server.url}  (chơi {a.so_ngay} Ngày, seed {a.seed}). Ctrl+C để dừng.", flush=True)
     try:
         while True:
             time.sleep(0.5)
