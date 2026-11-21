@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | Trịnh Minh Đức (2A202604078) | Duc1306 | `sim/gather` + `sim/quan` (luật P1–P3), contract v1.2–v1.3, `bench`/`soak` P4 | Integrator kiêm Release cho P3–P4 (gắn `phase-3`, `phase-4`, `v1.0.0`) | TADIZB |
 | | TADIZB | `sim/quan` (cặp với Duc1306), đồ họa gather | Dev cặp với Duc1306 (ghi `Co-authored-by`), đọc lại luật trước khi push | Duc1306 |
-| | congvt | `client/ui` + `sim/day` | QA lead (verification P1–P3) | Shirou191 |
+| Võ Trần Công (2A202604026) | cong2235 | `client/ui` (đồ họa, HUD, thoại), `sim/day` (`--mode day`, Shop, pause), `chonoi/ngay_dem.py`; skill `thiet-ke-do-hoa`. Commit ký tên git `congvt` | QA lead (verification + bằng chứng P1–P2), gắn `phase-1`, `phase-2` | Shirou191 |
 | | Shirou191 | `qa` (test mã thoát, hook pre-push, kiểm tất định) + `docs/contracts` | Integrator | congvt |
 | Hà Văn Khánh Đạt (2A202604074) | hadatttt | `sim/quan` mở rộng Cháy món (`burn`: `contract.py`, `quan.py`, `test_ext_burn.py`, UI `dish_burnt`) + Release, tài liệu (TEAM, retro, CHANGELOG) | PO + Scrum/Release | Shirou191 |
 
