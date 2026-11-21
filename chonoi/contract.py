@@ -1,6 +1,7 @@
 """Đọc game.contract.json và kiểm dải hợp lệ của tuning (PRD mục 13.2; số chuẩn, khóa mới Test Contract v1.1)."""
 
 import json
+import math
 import os
 
 from .errors import BadInput
@@ -29,7 +30,34 @@ def load_contract(path=DEFAULT_PATH) -> dict:
     except (OSError, ValueError) as e:
         raise BadInput(f"không đọc được {path}: {e}")
     validate_tuning(c.get("tuning"))
+    validate_extensions(c)
     return c
+
+
+# Mã mở rộng trong Test Contract (v1.1 mục 3, v1.2 mục 2) và các mã nhóm đã làm.
+EXTENSION_CODES = ("weapon", "net", "snake", "burn", "vendor", "ca_ho", "current", "reservations")
+IMPLEMENTED_EXTENSIONS = ("burn",)
+
+
+def validate_extensions(c):
+    """`extensions` ở gốc manifest: mảng mã mở rộng đã bật, không trùng, chỉ gồm mã nhóm đã làm.
+
+    `burn` bật <=> `tuning.quan.burn_s` là số hữu hạn > 0 (lõi để null).
+    """
+    ext = c.get("extensions", [])
+    if not isinstance(ext, list) or any(not isinstance(e, str) for e in ext) or len(set(ext)) != len(ext):
+        raise BadInput("extensions phải là mảng mã (chuỗi) không trùng")
+    for e in ext:
+        if e not in EXTENSION_CODES:
+            raise BadInput(f"extensions: mã lạ {e!r}, phải thuộc {list(EXTENSION_CODES)}")
+        if e not in IMPLEMENTED_EXTENSIONS:
+            raise BadInput(f"extensions: mở rộng {e!r} chưa làm, không được khai")
+    burn_s = c["tuning"]["quan"].get("burn_s")
+    if "burn" in ext:
+        if not (_num(burn_s) and math.isfinite(burn_s) and burn_s > 0):
+            raise BadInput("bật mở rộng burn thì tuning.quan.burn_s phải là số hữu hạn > 0")
+    elif burn_s is not None:
+        raise BadInput("burn_s phải là null trong lõi (mở rộng Cháy món chưa bật trong extensions)")
 
 
 def _int_between(name, v, lo, hi):
@@ -266,8 +294,7 @@ def validate_tuning(t):
         raise BadInput("quan.tip_min_patience_ratio phải thuộc (0, 1]")
     if not (_num(q.get("tip_reputation")) and q["tip_reputation"] > 0):
         raise BadInput("quan.tip_reputation phải > 0")
-    if q.get("burn_s") is not None:
-        raise BadInput("burn_s phải là null trong lõi (mở rộng Cháy món chưa bật)")
+    # burn_s: kiểm cùng `extensions` ở validate_extensions (null trong lõi, số > 0 khi bật Cháy món)
     for key in ("stoves", "tables"):
         arr = q.get(key)
         if not isinstance(arr, list) or not arr or len({e.get("id") for e in arr}) != len(arr):
