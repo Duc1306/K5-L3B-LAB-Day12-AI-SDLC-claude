@@ -64,6 +64,16 @@ Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headl
 
 Ngoài phần đề yêu cầu, nhóm được **thêm** nhân vật, loài cá/cây, sinh vật, món, bản đồ, cơ chế, câu chuyện, đồ họa, âm nhạc… với ba điều kiện: **không phá phần cố định** (tắt ở headless), ghi mục **"Sáng tạo của nhóm"** trong README của nhóm, và **làm lõi đúng trước**.
 
+## Mở rộng đã làm
+
+Nhóm 5 người nên đề yêu cầu ít nhất 1 mục (TICKET-02 mục 3, TICKET-03 mục 2). Khai trong `game.contract.json`: `"extensions": ["burn"]`.
+
+**Cháy món (`burn`)**, `tuning.quan.burn_s: 20`:
+- Món chín để trên bếp quá 1200 tick (20 s) thì cháy: bỏ món, nguyên liệu mất, bếp rảnh ngay. Đúng 1200 tick vẫn bưng được.
+- Đơn của món được giữ lại nguyên liệu ngay (`reserved`), nếu thiếu thì `unfulfillable` và khách vẫn chờ tới hết kiên nhẫn.
+- Event `dish_burnt {stove_id, order_id, dish_id, order_status}`. Trên trình duyệt có khói, chữ "cháy món!" và thoại.
+- Test: `PYTHONPATH=tests:. python3 -m unittest test_ext_burn -v` (11 test). Kiểm chứng và bằng chứng: [`docs/verification/ext-burn.md`](docs/verification/ext-burn.md), [`docs/proof/ext-burn/`](docs/proof/ext-burn/). Hợp đồng: [`docs/contracts/README.md`](docs/contracts/README.md) mục 3.1.
+
 ## Sáng tạo của nhóm
 
 Toàn bộ phần dưới đây là **lớp hiển thị trên trình duyệt** (`chonoi/web/index.html`, khối `ART (nhóm)`) và một script chơi thử; chỉ đọc snapshot, **không đổi** `chonoi/sim/*`, headless, `game.contract.json` hay `docs/contracts/`. Hướng dẫn cho agent: skill [`.agents/skills/thiet-ke-do-hoa`](.agents/skills/thiet-ke-do-hoa/SKILL.md).

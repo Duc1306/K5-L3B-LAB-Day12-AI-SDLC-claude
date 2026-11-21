@@ -16,6 +16,7 @@
 - Luật chơi của nhóm: `chonoi/sim/gather.py`, `chonoi/sim/quan.py` (tìm `TODO(nhóm)`).
 - **Số liệu chỉ đọc từ `game.contract.json` / dữ liệu**, không hard-code trong luật.
 - **Contract v1.2 (Phase 3): kho là CÁ THỂ** `{"items":[{"id","kind","fresh"}]}`; `hold`/`stock` là mảng cá thể, `reserved` là mảng id. Độ tươi tính bằng `chonoi/sim/fresh.py` (đơn vị 1/240 điểm), không cộng/trừ float trực tiếp. Fixture test kiểu cũ đổi bằng `tests/helpers.py` (`items`, `stock_items`, `as_items`, `counts`). Xem `docs/adr/0001-kho-ca-the-v12.md`.
+- Mở rộng đã bật khai ở `extensions` gốc manifest (hiện: `burn`). Thêm mở rộng mới thì thêm mã vào `IMPLEMENTED_EXTENSIONS` trong `chonoi/contract.py`, khai số liệu trong `tuning`, viết `tests/test_ext_<mã>.py` và `docs/verification/ext-<mã>.md`.
 - Đổi schema kho thì `grep` cả `.githooks/`, `docs/contracts/inventory.sample.json`, `tools/`, `chonoi/web/index.html`, không chỉ `chonoi/sim/`.
 - Mọi số ngẫu nhiên đi qua `Streams` (`chonoi/rng.py`); không dùng `random` toàn cục, không dùng đồng hồ hệ thống.
 - Sắp danh sách thực thể bằng `ids.sort_by_id`; cấp id bằng `IdAllocator`.
