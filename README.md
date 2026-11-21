@@ -18,8 +18,10 @@ Cách làm việc kỹ thuật là **tự do** (push thẳng, nhánh + PR, pair,
 ```bash
 git clone <fork-của-nhóm> && cd <fork-của-nhóm>
 PYTHONPATH=tests:. python3 -m unittest discover -s tests -v        # smoke test
-python3 -m chonoi.live --mode gather                                # chơi thử trên trình duyệt (tùy chọn)
+python3 -m chonoi.ngay_dem                                          # chơi liền mạch sáng → tối → sáng… trên trình duyệt
 ```
+
+Chơi riêng một buổi: `python3 -m chonoi.live --mode gather|quan`. Lưu ý: chạy riêng thì quán **không** có đồ của buổi sáng (kho rỗng) trừ khi truyền `--inventory <file>` do gather ghi bằng `--inventory-out <file>`.
 
 Windows: thêm `PYTHONIOENCODING=utf-8` trước lệnh live. Nếu máy chỉ có `python` thì cần một lệnh `python3` trên PATH, vì `headless_cmd` của test gọi `python3`.
 
@@ -69,7 +71,7 @@ Toàn bộ phần dưới đây là **lớp hiển thị trên trình duyệt** 
 - **Buổi sáng:** sông phù sa ánh hồng, bờ dừa nước, nhà sàn xa, nhà bè ở bến; camera bám Út Sen (bản đồ nhỏ góc phải); Út Sen áo bà ba, khăn rằn ca rô, kính lặn tự chế, giỏ đeo hông phồng theo đồ hái; cá theo loài (cá linh vẽ thành đàn); bong bóng thở, viền tối khi sắp hết oxy.
 - **Buổi tối:** quán trên nhà bè vẽ góc chéo 3/4 (bếp cà ràng, quầy, bàn ván, lan can tre), đèn dây vàng, khói bếp, ánh sáng đêm; bong bóng gọi món + thanh kiên nhẫn; thoại giọng Nam Bộ theo sự kiện (`customer_arrived`, `served`, `paid`, `customer_left`…).
 - **HUD bảng gỗ** cho cả hai buổi: thời gian, oxy, Máu, giỏ (sáng); tiền, uy tín, điểm, **kho khả dụng** (tồn − phần khách giữ), món trên tay, gợi ý phím (tối). Phím **H** bật nhật ký sự kiện.
-- **Chơi nối ngày → đêm (thử):** `python3 tools/choi_ngay_dem.py` chạy gather rồi tự mở quán với file kho vừa ghi (đúng cơ chế 2 tiến trình của Phase 1), có màn chuyển hoàng hôn. Chưa phải `--mode day`.
+- **Chơi liền mạch ngày → đêm → ngày mới:** `python3 -m chonoi.ngay_dem` (module nhóm `chonoi/ngay_dem.py`, dùng lại `LiveGame` của starter). Một tiến trình, một cổng: cập bến/hết giờ/ngất → nghỉ vài giây → quán mở với **đúng file kho** buổi sáng vừa ghi (mục G) → hết ca → sáng ngày mới. Màn hoàng hôn/bình minh, HUD có số ngày và tổng thu. Mỗi buổi tối vẫn là quán độc lập (tiền từ 0); chưa phải `--mode day`. Test: `tests/test_ngay_dem.py`.
 
 **Bằng chứng lõi vẫn đúng:** `PYTHONPATH=tests:. python3 -m unittest discover -s tests` → 77 test OK; smoke hộp đen ở Test Contract (gather `dock.json` → quán) cho `stock {"bong_sung":2,"ca_loc":1}` ở tick 0, khớp `gather_end.inventory`; `git diff main -- chonoi/sim chonoi/headless.py chonoi/live.py game.contract.json` trống. Ảnh: `docs/proof/art-*.png`.
 
