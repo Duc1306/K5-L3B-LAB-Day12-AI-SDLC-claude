@@ -17,4 +17,7 @@ echo "[pre-push] kiểm tất định..."
   || { echo "[pre-push] gather KHÔNG tất định"; exit 1; }
 "$PY" tools/kiem_tat_dinh.py --mode quan --seed 3 --ticks 3000 --inventory docs/contracts/inventory.sample.json >/dev/null \
   || { echo "[pre-push] quan KHÔNG tất định"; exit 1; }
+# day qua 2 Ngày: đi hết gather → quan → shop → dựng Ngày kế (RNG, id cá thể và cấp nâng cấp xuyên Ngày)
+"$PY" tools/kiem_tat_dinh.py --mode day --seed 1 --days 2 --ticks 44400 >/dev/null \
+  || { echo "[pre-push] day KHÔNG tất định"; exit 1; }
 echo "[pre-push] OK"
