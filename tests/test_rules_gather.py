@@ -6,7 +6,7 @@ Quy ước tick: bước k đọc frame tick k và ghi event ở tick k + 1.
 import json
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, as_items, counts, events, frames, kinds_of, read_jsonl, run_headless, snapshots, write_json
 
 
 def tuning():
@@ -15,7 +15,11 @@ def tuning():
 
 
 def run_gather(block, fr=(), ticks=1, inventory_out=False):
-    """Chạy gather với scenario `block` và các frame; trả (rows, inventory|None)."""
+    """Chạy gather với scenario `block` và các frame; trả (rows, inventory|None).
+
+    v1.2: `hold` viết kiểu cũ (mảng kind) được đổi sang cá thể I1, I2… fresh 100 (adapter fixture P1–P2)."""
+    if "hold" in block:
+        block = dict(block, hold=as_items(block["hold"]))
     with Workdir() as w:
         args = ["--mode", "gather", "--seed", "1", "--ticks", str(ticks), "--snapshot-every", "1",
                 "--scenario", write_json(w.path("sc.json"), {"gather": block}), "--out", w.path("o.jsonl")]
@@ -100,10 +104,13 @@ class Oxygen(unittest.TestCase):
         names = [e["name"] for e in events(rows) if e["tick"] == 1]
         self.assertEqual(names, ["choke", "faint", "gather_end"])
         faint = events(rows, "faint")[0]["data"]
-        self.assertEqual(faint, {"cause": "choke", "lost": ["ca_linh", "bong_sung", "ca_loc"], "hp": 0})
+        # v1.2: lost là mảng cá thể theo LIFO (vào sau bỏ trước), không còn mảng kind
+        self.assertEqual((faint["cause"], faint["hp"]), ("choke", 0))
+        self.assertEqual([(i["id"], i["kind"]) for i in faint["lost"]],
+                         [("I3", "ca_linh"), ("I2", "bong_sung"), ("I1", "ca_loc")])
         end = events(rows, "gather_end")[0]["data"]
-        self.assertEqual(end, {"reason": "fainted", "inventory": {"items": {}}})
-        self.assertEqual(inv, {"items": {}})
+        self.assertEqual(end, {"reason": "fainted", "inventory": {"items": []}})
+        self.assertEqual(inv, {"items": []})
         self.assertEqual(rows[-1]["reason"], "fainted")
         self.assertEqual(rows[-1]["ticks"], 1)
 
@@ -119,7 +126,8 @@ class Harvest(unittest.TestCase):
         self.assertEqual([(e["tick"], e["data"]) for e in ev],
                          [(1, {"node_id": "N1", "kind": "bong_dien_dien", "amount": 1})])
         s = snap_at(rows, 1)
-        self.assertEqual(s["hold"], ["ca_loc", "bong_sung", "bong_dien_dien"])
+        self.assertEqual(kinds_of(s["hold"]), ["ca_loc", "bong_sung", "bong_dien_dien"])
+        self.assertEqual(s["hold"][-1], {"id": "I3", "kind": "bong_dien_dien", "fresh": 100}, "hàng mới fresh 100, id kế tiếp")
         self.assertEqual(s["nodes"][0]["regrow_ticks"], int(tuning()["regrow_s"] * 60))
         self.assertFalse(s["nodes"][0]["ready"])
 
@@ -166,7 +174,7 @@ class Catch(unittest.TestCase):
         ev = events(rows, "fish_caught")
         self.assertEqual([(e["tick"], e["data"]) for e in ev], [(1, {"fish_id": "F1", "kind": "ca_linh", "yield": 3})])
         s = snap_at(rows, 1)
-        self.assertEqual(s["hold"], ["ca_linh"] * 3)
+        self.assertEqual(kinds_of(s["hold"]), ["ca_linh"] * 3)
         self.assertEqual([f["id"] for f in s["fish"]], ["F2"])
         self.assertEqual(s["player"]["catch_cd_ticks"], int(tuning()["catch_cooldown_s"] * 60))
 
@@ -208,7 +216,7 @@ class EndOfMorning(unittest.TestCase):
         rows, inv = run_gather({"hold": ["ca_loc"], "time_left_ticks": 1, **NO_FISH},
                                fr=({"tick": 0, "interact": True},), ticks=5, inventory_out=True)
         self.assertEqual(events(rows, "gather_end")[0]["data"]["reason"], "docked")
-        self.assertEqual(inv, {"items": {"ca_loc": 1}})
+        self.assertEqual(counts(inv["items"]), {"ca_loc": 1})
 
     def test_bat_hop_le_o_buoc_cuoi_van_vao_kho(self):
         block = {"player": {"pos": [15, 6]}, "time_left_ticks": 1, "random_fish": False,
@@ -216,7 +224,8 @@ class EndOfMorning(unittest.TestCase):
         rows, inv = run_gather(block, fr=({"tick": 0, "catch": True},), ticks=5, inventory_out=True)
         self.assertEqual([e["name"] for e in events(rows)], ["fish_caught", "gather_end"])
         self.assertEqual(events(rows, "gather_end")[0]["data"]["reason"], "time")
-        self.assertEqual(inv, {"items": {"ca_linh": 3}})
+        self.assertEqual(counts(inv["items"]), {"ca_linh": 3})
+        self.assertEqual([i["fresh"] for i in inv["items"]], [100] * 3, "bắt ở bước cuối: chưa hao")
 
 
 if __name__ == "__main__":

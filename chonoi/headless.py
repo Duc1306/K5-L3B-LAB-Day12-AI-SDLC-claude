@@ -12,7 +12,7 @@ from .errors import BadInput
 from .inputs import load_frames
 from .inventory import read_inventory
 from .runner import run
-from .scenario import load_scenario
+from .scenario import load_day_scenario, load_scenario
 
 
 class _Parser(argparse.ArgumentParser):
@@ -33,7 +33,7 @@ def _int(name):
 
 def main(argv=None) -> int:
     p = _Parser(prog="chonoi.headless")
-    p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])  # `day`: Test Contract v1.1
+    p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])  # `day` có từ v1.1
     p.add_argument("--seed", required=True, type=_int("seed"))
     p.add_argument("--ticks", required=True, type=_int("ticks"))
     p.add_argument("--out", required=True)
@@ -42,16 +42,16 @@ def main(argv=None) -> int:
     p.add_argument("--inventory")
     p.add_argument("--inventory-out", dest="inventory_out")
     p.add_argument("--snapshot-every", dest="snapshot_every", type=_int("snapshot-every"), default=10)
-    p.add_argument("--days", type=_int("days"))
+    p.add_argument("--days", type=_int("days"), default=None)  # v1.1: chỉ với day, 1..5, mặc định 1
     a = p.parse_args(argv)
     try:
         if a.days is not None and a.mode != "day":
-            raise BadInput("--days chỉ dùng với day")
+            raise BadInput("--days chỉ dùng với --mode day")
         days = 1 if a.days is None else a.days
-        if not 1 <= days <= 5:
+        if not (1 <= days <= 5):
             raise BadInput("--days phải là số nguyên từ 1 đến 5")
         if a.mode == "day" and (a.inventory or a.inventory_out):
-            raise BadInput("day tự bàn giao kho trong bộ nhớ; --inventory/--inventory-out chỉ cho quan/gather")
+            raise BadInput("--inventory / --inventory-out dành cho hai mode độc lập, không dùng với day")
         if a.ticks < 0:
             raise BadInput("--ticks phải >= 0")
         if a.snapshot_every <= 0:
@@ -67,10 +67,10 @@ def main(argv=None) -> int:
             raise BadInput("các đường dẫn đầu vào/đầu ra phải khác nhau")
         contract = load_contract()
         tuning = contract["tuning"]
-        scenario = load_scenario(a.scenario, a.mode, tuning)
+        scenario = load_day_scenario(a.scenario, tuning, days) if a.mode == "day" else load_scenario(a.scenario, a.mode, tuning)
         frames = load_frames(a.inputs)
-        inventory = read_inventory(a.inventory) if a.inventory else None
-        if inventory is not None and "stock" in scenario:  # (chỉ quan)
+        inventory = read_inventory(a.inventory, contract["contract_version"]) if a.inventory else None
+        if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
     except BadInput as e:
         sys.stderr.write(f"đầu vào sai: {e}\n")

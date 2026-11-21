@@ -1,0 +1,2 @@
+Kiểm chứng chạy trên code của commit 009e522 (main); file bằng chứng được commit ngay sau.
+Windows 11 / Python 3 / 2026-11-21

@@ -1,0 +1,1 @@
+{"frames": [{"tick": 0, "interact": true}, {"tick": 1, "interact": false}, {"tick": 21, "buy": "oxygen"}, {"tick": 22, "buy": "hp"}, {"tick": 23, "buy": "hp"}, {"tick": 24, "buy": "weapon"}, {"tick": 25, "shop_done": true}, {"tick": 26, "shop_done": false, "interact": true}, {"tick": 27, "interact": false}, {"tick": 47, "buy": "oxygen"}, {"tick": 48, "shop_done": true}]}

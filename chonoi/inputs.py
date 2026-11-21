@@ -3,7 +3,6 @@
 Dùng: ip = InputPlayer(frames); mỗi bước k: state = ip.advance(k)
   state.move -> (x, d) trong gather hoặc (x, z) trong quan, đã chuẩn hóa;
   state.pressed("interact") -> True nếu CẠNH LÊN ở bước này.
-  state.buy -> chuỗi lệnh Shop nếu frame của ĐÚNG bước này khai `buy`, ngược lại None (v1.1).
 """
 
 import json
@@ -11,9 +10,9 @@ import math
 
 from .errors import BadInput
 
-BUTTONS_V10 = ("interact", "catch")
-# v1.1 mục 4.2: thêm `pause` (mọi mode), `shop_done` (Shop), `attack`/`photo` (mở rộng Lao/Sổ tay).
-# Nút đúng kiểu nhưng sai pha hoặc mở rộng chưa bật thì sim bỏ qua (không phải mã 2).
+BUTTONS_V10 = ("interact", "catch")  # v1.0
+# v1.1 (TICKET-02 mục 4.2): `pause` ở mọi mode, `shop_done` trong Shop, `attack`/`photo` của mở rộng
+# (mở rộng chưa bật thì bỏ qua, không phải mã 2). `buy` là CHUỖI, chỉ có hiệu lực ở đúng frame khai báo.
 BUTTONS_V11 = ("interact", "catch", "pause", "shop_done", "attack", "photo")
 BUTTONS = BUTTONS_V11
 
@@ -23,7 +22,7 @@ class InputState:
         self.move = move
         self.held = held
         self._edges = edges
-        self.buy = buy
+        self.buy = buy  # lệnh mua của frame này (chuỗi) hoặc None
 
     def pressed(self, name: str) -> bool:
         return name in self._edges
@@ -41,7 +40,7 @@ def load_frames(path, buttons=BUTTONS):
         raise BadInput("inputs phải có đúng một khóa 'frames' (mảng)")
     last = -1
     frames = []
-    allowed = {"tick", "move", "buy", *buttons}
+    allowed = {"tick", "move", *buttons} | ({"buy"} if "shop_done" in buttons else set())
     for i, fr in enumerate(data["frames"]):
         if not isinstance(fr, dict):
             raise BadInput(f"frame {i} không phải object")
@@ -87,10 +86,8 @@ class InputPlayer:
     def advance(self, k: int) -> InputState:
         """Đọc input có tick == k. Trả trạng thái dùng cho bước k."""
         edges = set()
-        buy = None
         fr = self._frames.get(k)
         if fr:
-            buy = fr.get("buy")  # chỉ chạy tại frame khai báo, không kế thừa
             if "move" in fr:
                 self._move = normalize(fr["move"])
             for b in self._buttons:
@@ -98,7 +95,7 @@ class InputPlayer:
                     if fr[b] and not self._held[b]:
                         edges.add(b)
                     self._held[b] = fr[b]
-        return InputState(self._move, dict(self._held), edges, buy)
+        return InputState(self._move, dict(self._held), edges, fr.get("buy") if fr else None)
 
 
 class LiveInputs:
@@ -107,16 +104,13 @@ class LiveInputs:
     Luồng khác gọi set(); luồng mô phỏng gọi advance() mỗi tick (cần khóa ngoài nếu dùng nhiều luồng).
     """
 
-    def __init__(self, buttons=BUTTONS):
+    def __init__(self, buttons=BUTTONS_V10):
         self._buttons = buttons
         self._move = (0.0, 0.0)
         self._held = {b: False for b in buttons}
         self._pending = set()
-        self._buy = None
 
-    def set(self, move=None, buy=None, **buttons):
-        if buy:
-            self._buy = str(buy)
+    def set(self, move=None, **buttons):
         if move is not None:
             self._move = normalize(move)
         for b, v in buttons.items():
@@ -128,5 +122,4 @@ class LiveInputs:
 
     def advance(self) -> InputState:
         edges, self._pending = self._pending, set()
-        buy, self._buy = self._buy, None
-        return InputState(self._move, dict(self._held), edges, buy)
+        return InputState(self._move, dict(self._held), edges)

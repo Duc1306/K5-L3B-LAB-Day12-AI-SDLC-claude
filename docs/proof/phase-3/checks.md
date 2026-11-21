@@ -1,0 +1,13 @@
+# Kiểm chứng chạy thật Phase 3 (contract v1.2)
+
+Sinh bằng `python3 tools/proof_phase3.py`. File vào/ra nằm cùng thư mục.
+
+| # | Kiểm tra | Kết quả | Chi tiết |
+|---|---|---|---|
+| 1 | Ngưỡng 30: spoiled ở tick 1 đúng nguyên văn đề | Đạt | `python3 -m chonoi.headless --mode gather --seed 1 --ticks 1 --scenario docs/proof/phase-3/threshold-sc.json --out docs/proof/phase-3/threshold.jsonl` → `{"type": "event", "tick": 1, "phase": "gather", "name": "spoiled", "data": {"item_id": "I1", "kind": "ca_linh", "location": "hold"}}` |
+| 2 | Smoke bàn giao file: quán nhận đúng id, kind, độ tươi sau lần hao ở bước gather | Đạt | `python3 -m chonoi.headless --mode gather --seed 1 --ticks 10 --scenario docs/proof/phase-3/handoff-sc.json --inputs docs/proof/phase-3/handoff-inputs.json --inventory-out docs/proof/phase-3/handoff-kho.json --out docs/proof/phase-3/handoff-gather.jsonl` rồi `python3 -m chonoi.headless --mode quan --seed 1 --ticks 0 --inventory docs/proof/phase-3/handoff-kho.json --out docs/proof/phase-3/handoff-quan.jsonl`. File kho: `{"items": [{"id": "I1", "kind": "ca_linh", "fresh": 99.99166666666666}]}`; snapshot quán tick 0: `[{"id": "I1", "kind": "ca_linh", "fresh": 99.992}]` |
+| 3 | Nhánh ngưỡng giữ nguyên qua file: 30 đúng trong kho, ươn ở bước quán đầu (location stock) | Đạt | Kho sau gather: `{"items": [{"id": "I1", "kind": "ca_loc", "fresh": 30}]}`; event quán: `[{"type": "event", "tick": 1, "phase": "quan", "name": "spoiled", "data": {"item_id": "I1", "kind": "ca_loc", "location": "stock"}}]` |
+| 4 | Contract v1.2: file kho đếm / sai schema → mã 2, không ghi đầu ra | Đạt | `kho-dem.json` → mã 2 (đầu vào sai: items phải là mảng cá thể {id, kind, fresh} (contract v1.2)); `kho-id-trung.json` → mã 2 (đầu vào sai: items: id trùng I1); `kho-fresh-ngoai-mien.json` → mã 2 (đầu vào sai: items[0].fresh phải là số hữu hạn trong [0, 100], đang là 120); `kho-kind-la.json` → mã 2 (đầu vào sai: items[0]: nguyên liệu lạ 'ca_rong') |
+| 5 | `day`: bàn giao cùng tick không hao thêm; Ngày 2 cấp id mới I4–I6 theo mẫu | Đạt | `python3 -m chonoi.headless --mode day --days 2 --seed 1 --ticks 50000 --scenario docs/proof/phase-3/day-sc.json --inputs docs/proof/phase-3/handoff-inputs.json --snapshot-every 600 --out docs/proof/phase-3/day2.jsonl` (0.29 s) → gather_end tick 1, snapshot quán phase_tick 0 cùng tick, kho `['I1', 'I2', 'I3']`; Ngày 2 giỏ `['I4', 'I5', 'I6']`; end `days_complete`, days_completed 2 |
+| 6 | Headless một Ngày không pause (22200 tick) ≤ 20 s | Đạt | `python3 -m chonoi.headless --mode day --days 1 --seed 1 --ticks 22200 --snapshot-every 600 --out docs/proof/phase-3/day1.jsonl` → 0.53 s |
+| 7 | Tất định: 2 lần `day --days 2` cùng seed giống từng byte | Đạt | sha256 `be0abdead81064dc…` × 2 |

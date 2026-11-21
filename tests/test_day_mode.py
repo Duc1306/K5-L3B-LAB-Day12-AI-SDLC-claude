@@ -3,7 +3,7 @@
 import json
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, as_items, counts, events, frames, read_jsonl, run_headless, snapshots, write_json
 
 with open("game.contract.json", encoding="utf-8") as _f:
     T = json.load(_f)["tuning"]
@@ -14,7 +14,7 @@ DAY_TICKS = G_TICKS + Q_TICKS + S_TICKS  # 22.200: một Ngày không pause
 
 # Mở Ngày đã có tiền và hàng: tương tác ở bến (tick 0) đóng ca sáng ngay (ví dụ v1.1 mục 4.3).
 RICH = {"day": {"money": 200, "earned": 200},
-        "gather": {"hold": ["ca_loc", "bong_sung", "bong_sung"], "random_fish": False}}
+        "gather": {"hold": as_items(["ca_loc", "bong_sung", "bong_sung"]), "random_fish": False}}  # v1.2: cá thể
 DOCK = {"tick": 0, "interact": True}
 
 
@@ -82,16 +82,16 @@ class DayLoop(unittest.TestCase):
             self.assertEqual(code, 0, err)
             ge, = ev(rows, "gather_end")
             self.assertEqual((ge["tick"], ge["data"]["reason"]), (1, "docked"))
-            self.assertEqual(ge["data"]["inventory"], {"items": {"bong_sung": 2, "ca_loc": 1}})
+            self.assertEqual(counts(ge["data"]["inventory"]["items"]), {"bong_sung": 2, "ca_loc": 1})
             ps = [r for r in ev(rows, "phase_start") if r["tick"] == 1]
             self.assertEqual([r["phase"] for r in ps], ["quan"])
             q = [s for s in snapshots(rows) if s["phase"] == "quan"][0]
-            self.assertEqual(q["stock"], {"bong_sung": 2, "ca_loc": 1})
+            self.assertEqual(counts(q["stock"]), {"bong_sung": 2, "ca_loc": 1})
             self.assertEqual((q["money"], q["earned"]), (200, 200))
 
     def test_khach_chi_goi_mon_trong_ke_hoach(self):
         with Workdir() as w:
-            sc = {"gather": {"hold": ["ca_loc"] * 3 + ["ca_keo"] * 4 + ["bong_sung"] * 4, "random_fish": False}}
+            sc = {"gather": {"hold": as_items(["ca_loc"] * 3 + ["ca_keo"] * 4 + ["bong_sung"] * 4), "random_fish": False}}
             code, err, rows = run_day(w, scenario=sc, inputs=[DOCK], ticks=1 + 120 + 900 * 3 + 2)
             self.assertEqual(code, 0, err)
             dishes = {r["data"]["dish_id"] for r in ev(rows, "customer_arrived")}
@@ -121,12 +121,12 @@ class DayLoop(unittest.TestCase):
 
     def test_ngat_van_mo_quan_voi_kho_rong(self):
         with Workdir() as w:
-            sc = {"gather": {"hold": ["ca_loc"], "random_fish": False,
+            sc = {"gather": {"hold": as_items(["ca_loc"]), "random_fish": False,
                              "player": {"pos": [50, 5], "oxygen_ticks": 0, "hp": 1, "zero_oxy_ticks": 59}}}
             code, err, rows = run_day(w, scenario=sc, ticks=3)
             self.assertEqual(code, 0, err)
             ge, = ev(rows, "gather_end")
-            self.assertEqual((ge["tick"], ge["data"]), (1, {"reason": "fainted", "inventory": {"items": {}}}))
+            self.assertEqual((ge["tick"], ge["data"]), (1, {"reason": "fainted", "inventory": {"items": []}}))
             self.assertEqual([r["phase"] for r in ev(rows, "phase_start") if r["tick"] == 1], ["quan"])
 
     def test_tat_dinh_tung_byte(self):
@@ -169,7 +169,7 @@ class Shop(unittest.TestCase):
             self.assertEqual(g2["player"]["oxygen_max_ticks"], 2700)
             self.assertEqual(g2["player"]["oxygen_ticks"], 2700)
             # giỏ làm mới theo MẪU gather (v1.1 mục 4.3: mẫu khởi tạo mỗi Ngày), không cộng kho dư của Ngày 1
-            self.assertEqual(g2["hold"], RICH["gather"]["hold"])
+            self.assertEqual(counts(g2["hold"]), counts(RICH["gather"]["hold"]))  # Ngày ≥ 2: id mới (clarify #28)
             self.assertEqual((g2["player"]["hp"], g2["money"]), (T["gather"]["hp_max"], 0))
 
     def test_buy_failed_funds_max_level_unknown(self):
@@ -243,7 +243,7 @@ class Pause(unittest.TestCase):
             self.assertEqual(code, 0, err)
             p, = ev(rows, "paused")
             self.assertEqual((p["tick"], p["phase"], p["day"]), (3, "gather", 1))
-            self.assertEqual(rows[-1]["state"], "paused")
+            self.assertEqual(snapshots(rows)[-1]["state"], "paused")  # `paused` chỉ có ở snapshot, end vẫn playing
 
 
 class DayInputErrors(unittest.TestCase):
@@ -274,7 +274,7 @@ class DayInputErrors(unittest.TestCase):
 
     def test_khach_mau_ngoai_ke_hoach_ma_2_khi_mo_quan(self):
         with Workdir() as w:
-            sc = {"gather": {"hold": ["ca_keo", "ca_keo"], "random_fish": False},
+            sc = {"gather": {"hold": as_items(["ca_keo", "ca_keo"]), "random_fish": False},
                   "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_keo_nuong"}]}}
             self.assertEqual(self._code(w, "--mode", "day", scenario=sc, inputs=[DOCK]), 2)
 

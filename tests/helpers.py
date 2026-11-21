@@ -65,3 +65,40 @@ class Workdir:
 
     def path(self, name):
         return os.path.join(self._d.name, name)
+
+
+# --- v1.2: kho cá thể {id, kind, fresh} -------------------------------------------------------------
+def item(kind, iid, fresh=100):
+    return {"id": iid, "kind": kind, "fresh": fresh}
+
+
+def items(*kinds, start=1, fresh=100):
+    """items("ca_loc", "bong_sung") -> [{"id": "I1", "kind": "ca_loc", "fresh": 100}, {"id": "I2", ...}]"""
+    return [item(k, f"I{start + i}", fresh) for i, k in enumerate(kinds)]
+
+
+def stock_items(counts, start=1, fresh=100):
+    """Chuyển fixture kho ĐẾM cũ {kind: n} (P1–P2) sang mảng cá thể v1.2, id I1… theo kind đã sắp."""
+    ks = [k for k in sorted(counts) for _ in range(counts[k])]
+    return items(*ks, start=start, fresh=fresh)
+
+
+def as_items(v):
+    """Fixture cũ -> v1.2: mảng chuỗi kind (giỏ) hoặc map đếm (kho) -> mảng cá thể; đã là cá thể thì giữ."""
+    if isinstance(v, dict):
+        return stock_items(v)
+    if isinstance(v, list) and v and isinstance(v[0], str):
+        return items(*v)
+    return v
+
+
+def kinds_of(arr):
+    return [i["kind"] for i in arr]
+
+
+def counts(arr):
+    """Mảng cá thể -> map đếm theo kind (để so với kỳ vọng kiểu P1–P2)."""
+    out = {}
+    for i in arr:
+        out[i["kind"]] = out.get(i["kind"], 0) + 1
+    return {k: out[k] for k in sorted(out)}

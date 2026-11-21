@@ -230,6 +230,17 @@ def _validate_shop(shop):
                 raise BadInput(f"tuning.shop.upgrades.{kind}[{i}].{field[kind]} phải > 0")
 
 
+def _validate_freshness(f):
+    """v1.2: độ tươi cá thể."""
+    keys = {"initial", "gather_decay_per_s", "quan_decay_per_s", "spoiled_below"}
+    if not isinstance(f, dict) or set(f) != keys:
+        raise BadInput(f"tuning.freshness phải có đúng {sorted(keys)}")
+    _between("freshness.initial", f["initial"], 0, 100)
+    _between("freshness.spoiled_below", f["spoiled_below"], 0, f["initial"])
+    for k in ("gather_decay_per_s", "quan_decay_per_s"):
+        _between(f"freshness.{k}", f[k], 0, 100)
+
+
 def validate_tuning(t):
     if not isinstance(t, dict):
         raise BadInput("thiếu khối tuning")
@@ -266,3 +277,4 @@ def validate_tuning(t):
     _validate_menu(menu)
     _validate_day_plan(t.get("day_plan"), menu)
     _validate_shop(t.get("shop"))
+    _validate_freshness(t.get("freshness"))
