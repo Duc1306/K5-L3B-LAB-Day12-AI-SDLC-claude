@@ -27,3 +27,4 @@
 
 ## Skills / hooks của nhóm
 - (Ghi tên và khi nào dùng; tối thiểu 2 skill/hook/command nhóm tự viết, đặt ở `.agents/skills/` hoặc tương đương.)
+- `thiet-ke-do-hoa` (`.agents/skills/thiet-ke-do-hoa/SKILL.md`): dùng khi vẽ/animation/thoại cho `chonoi/web/index.html` (cảnh lặn nhìn ngang, nhà bè nhìn từ trên xuống, Út Sen, ánh sáng sáng/tối) hoặc thêm asset ngoài và ghi `CREDITS.md`. Chỉ đọc snapshot, không đụng sim/headless/contract.

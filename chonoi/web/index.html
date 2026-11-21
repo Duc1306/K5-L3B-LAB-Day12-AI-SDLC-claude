@@ -127,6 +127,220 @@ function overlay(w, h) {
   }
 }
 
+// ===== ART (nhóm) BEGIN =====
+// Đồ họa trang trí: CHỈ đọc snapshot, không ảnh hưởng luật/headless.
+// Hướng dẫn: .agents/skills/thiet-ke-do-hoa/SKILL.md
+const ART = {
+  sky: ["#b9b6d6", "#f2bfae", "#ffe2c2"],          // tím nhạt → hồng → cam sớm
+  sun: "#fff3dc",
+  farBank: "#8e9b7c", house: "#7f7a6a", houseRoof: "#6e6656",
+  nipaFar: "#6f8463", nipaNear: "#4f7a3a", nipaVein: "#3f6330",
+  grass: "#6f8a3e",
+  water: ["#c8955c", "#b07a45", "#8a5a2e", "#4f321b"], // phù sa: nâu vàng → nâu đậm
+  surfaceHi: "rgba(255,236,214,.75)",
+  ray: "rgba(255,214,160,", silt: "rgba(240,210,160,", murk: "rgba(48,30,14,",
+  mud: ["#5a3d22", "#3e2916"], weed: "#5d6b34",
+  wood: "#8d6e4b", woodDark: "#6b4a2b", wall: "#a07a50", roof: "#9b7b4f", roofDark: "#7a5e38", jar: "#a0522d",
+};
+const REDUCED_MOTION = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+// PRNG riêng của client cho bố cục cảnh (không dính tới Streams của sim)
+function mulberry32(a) {
+  return function () {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const SCENERY = (() => {
+  const r = mulberry32(20261121);
+  const far = [], houses = [], silt = [], weeds = [], clouds = [];
+  for (let i = 0; i < 70; i++) far.push({ u: i / 69 + (r() - 0.5) * 0.01, h: 0.8 + r() * 0.6, n: 5 + Math.floor(r() * 3), ph: r() * 6.28 });
+  for (let i = 0; i < 4; i++) houses.push({ u: 0.12 + i * 0.23 + r() * 0.08, w: 0.9 + r() * 0.5 });
+  for (let i = 0; i < 90; i++) silt.push({ u: r(), v: r(), sp: 0.2 + r() * 0.6, ph: r() * 6.28, r: 0.5 + r() * 1.2 });
+  for (let i = 0; i < 26; i++) weeds.push({ u: r(), h: 1 + r() * 2.2, ph: r() * 6.28 });
+  for (let i = 0; i < 5; i++) clouds.push({ u: r(), v: 0.15 + r() * 0.35, w: 3 + r() * 4, sp: 0.004 + r() * 0.006 });
+  return { far, houses, silt, weeds, clouds };
+})();
+// sóng mặt nước, đơn vị thế giới
+function waveY(x, t, amp) {
+  return amp * (Math.sin(x * 0.55 + t * 1.6) * 0.6 + Math.sin(x * 1.3 - t * 2.3) * 0.3 + Math.sin(x * 0.17 + t * 0.7) * 0.4);
+}
+// bụi dừa nước: tàu lá mọc từ gốc, xòe quạt, ngọn rủ
+function nipa(x, y, size, n, sway, color, vein) {
+  ctx.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const k = n === 1 ? 0 : (i / (n - 1)) * 2 - 1;
+    const a = -Math.PI / 2 + k * 1.05 + sway * (1 + Math.abs(k));
+    const len = size * (1 - 0.25 * Math.abs(k));
+    const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len * 0.85 + Math.abs(k) * size * 0.3;
+    const cx = x + Math.cos(a) * len * 0.45, cy = y + Math.sin(a) * len * 0.95;
+    if (vein && size > 18) {
+      ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, size * 0.03);
+      for (let j = 2; j <= 10; j++) {
+        const q = j / 11, m = 1 - q;
+        const px = m * m * x + 2 * m * q * cx + q * q * ex, py = m * m * y + 2 * m * q * cy + q * q * ey;
+        let tx = 2 * m * (cx - x) + 2 * q * (ex - cx), ty = 2 * m * (cy - y) + 2 * q * (ey - cy);
+        const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+        const L = size * 0.2 * (1 - q * 0.5);
+        for (const sd of [-1, 1]) {
+          const dx = tx * 0.55 - ty * sd, dy = ty * 0.55 + tx * sd + 0.45;
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + dx * L, py + dy * L); ctx.stroke();
+        }
+      }
+    }
+    ctx.strokeStyle = vein || color; ctx.lineWidth = Math.max(1, size * 0.05);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke();
+  }
+}
+// nhà bè ở bến: sàn ván trên phao, vách gỗ, mái lá dừa nước, lu nước; nhấp nhô theo sóng
+function artDock(v) {
+  const { meta, s, sx, sy, t, amp } = v;
+  const dp = meta.dock_pos || [2, 0], dr = meta.dock_radius || 3, x0 = dp[0], u = s;
+  const bob = waveY(x0, t, amp) * s * 0.6, tilt = (waveY(x0 + 1, t, amp) - waveY(x0 - 1, t, amp)) * 0.15;
+  ctx.save(); ctx.translate(sx(x0), sy(dp[1]) + bob); ctx.rotate(tilt);
+  ctx.fillStyle = "#3b3b3b";
+  for (const k of [-1.2, 0, 1.2]) { ctx.beginPath(); ctx.ellipse(k * u, 0.25 * u, 0.5 * u, 0.28 * u, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = ART.wood; ctx.fillRect(-1.9 * u, -0.35 * u, 3.8 * u, 0.4 * u);
+  ctx.strokeStyle = ART.woodDark; ctx.lineWidth = Math.max(1, 0.06 * u);
+  for (let k = -1.9; k <= 1.91; k += 0.475) { ctx.beginPath(); ctx.moveTo(k * u, -0.35 * u); ctx.lineTo(k * u, 0.05 * u); ctx.stroke(); }
+  ctx.fillStyle = ART.wall; ctx.fillRect(-1.3 * u, -1.9 * u, 2.6 * u, 1.55 * u);
+  for (let k = -1.3; k <= 1.31; k += 0.325) { ctx.beginPath(); ctx.moveTo(k * u, -1.9 * u); ctx.lineTo(k * u, -0.35 * u); ctx.stroke(); }
+  ctx.fillStyle = "#3a2616"; ctx.fillRect(-0.35 * u, -1.45 * u, 0.7 * u, 1.1 * u);
+  ctx.fillStyle = "#f3c79a"; ctx.fillRect(0.6 * u, -1.5 * u, 0.45 * u, 0.4 * u);   // cửa sổ hắt nắng hồng
+  ctx.fillStyle = ART.jar; ctx.beginPath(); ctx.ellipse(1.6 * u, -0.62 * u, 0.26 * u, 0.3 * u, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ART.roof; ctx.beginPath(); ctx.moveTo(-1.85 * u, -1.75 * u); ctx.lineTo(0, -3.0 * u); ctx.lineTo(1.85 * u, -1.75 * u); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = ART.roofDark;
+  for (let k = 1; k < 5; k++) {
+    const f = k / 5, yy = (-1.75 - 1.25 * f) * u, hw = 1.85 * (1 - f) * u;
+    ctx.beginPath(); ctx.moveTo(-hw, yy); ctx.lineTo(hw, yy); ctx.stroke();
+  }
+  ctx.beginPath();                                                               // tua lá rủ ở mép mái
+  for (let k = -1.85; k <= 1.85; k += 0.185) { ctx.moveTo(k * u, -1.75 * u); ctx.lineTo((k + 0.05) * u, -1.6 * u); }
+  ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(255,230,150,.45)"; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.arc(sx(x0), sy(dp[1]), dr * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  text("Bến (E)", sx(x0), sy(-3.4), { size: 11, align: "center", color: "#5a3a22" });
+}
+// lớp nền gather: trời sớm, bờ xa, nước phù sa, đáy bùn, nhà bè
+function artGatherBack(v) {
+  const { w, h, top, bottom, s, X, D, sx, sy, t, amp, camX } = v;
+  const oy = sy(0), xL = sx(0), xR = sx(X), yB = sy(D);
+  const par = REDUCED_MOTION ? 0 : -(camX - X / 2) * s * 0.08;
+  const bx = (u) => -0.1 * w + u * 1.2 * w + par;
+  // trời
+  const sky = ctx.createLinearGradient(0, top, 0, oy);
+  ART.sky.forEach((c, i) => sky.addColorStop(i / (ART.sky.length - 1), c));
+  ctx.fillStyle = sky; ctx.fillRect(0, top, w, oy - top);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, top, w, oy - top); ctx.clip();
+  const sunX = w * 0.78 + par * 0.3, sunY = oy - 1.1 * s;
+  const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 6 * s);
+  glow.addColorStop(0, "rgba(255,240,210,.9)"); glow.addColorStop(0.25, "rgba(255,200,160,.45)"); glow.addColorStop(1, "rgba(255,190,160,0)");
+  ctx.fillStyle = glow; ctx.fillRect(sunX - 6 * s, sunY - 6 * s, 12 * s, 12 * s);
+  ctx.fillStyle = ART.sun; ctx.beginPath(); ctx.arc(sunX, sunY, 1.1 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,236,228,.45)";
+  SCENERY.clouds.forEach((c) => {
+    const cx = (((c.u + t * c.sp) % 1.3) - 0.15) * w + par * 0.2, cy = top + c.v * (oy - top);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, c.w * s, 0.35 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + c.w * 0.4 * s, cy - 0.2 * s, c.w * 0.5 * s, 0.3 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // bờ xa: dải đất, nhà sàn, dừa nước, sương sớm
+  ctx.fillStyle = ART.farBank; ctx.beginPath(); ctx.moveTo(-10, oy);
+  for (let x = -10; x <= w + 10; x += 8) ctx.lineTo(x, oy - (0.45 + 0.12 * Math.sin((x - par) * 0.031) + 0.08 * Math.sin((x - par) * 0.11)) * s);
+  ctx.lineTo(w + 10, oy); ctx.closePath(); ctx.fill();
+  SCENERY.houses.forEach((hs) => {
+    const hx = bx(hs.u), hw = hs.w * s, base = oy - 0.4 * s;
+    ctx.fillStyle = ART.house; ctx.fillRect(hx - hw * 0.45, base - 0.7 * s, hw * 0.9, 0.7 * s);
+    ctx.fillStyle = ART.houseRoof; ctx.beginPath(); ctx.moveTo(hx - hw * 0.65, base - 0.7 * s); ctx.lineTo(hx, base - 1.25 * s); ctx.lineTo(hx + hw * 0.65, base - 0.7 * s); ctx.fill();
+    ctx.strokeStyle = ART.houseRoof; ctx.lineWidth = Math.max(1, s * 0.08);
+    for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(hx + k * hw * 0.35, base); ctx.lineTo(hx + k * hw * 0.35, oy); ctx.stroke(); }
+  });
+  SCENERY.far.forEach((p) => nipa(bx(p.u), oy - 0.35 * s, p.h * 1.9 * s, p.n, Math.sin(t * 0.8 + p.ph) * 0.06, ART.nipaFar, null));
+  const mist = ctx.createLinearGradient(0, oy - 1.2 * s, 0, oy);
+  mist.addColorStop(0, "rgba(255,232,214,0)"); mist.addColorStop(1, "rgba(255,232,214,.55)");
+  ctx.fillStyle = mist; ctx.fillRect(0, oy - 1.2 * s, w, 1.2 * s);
+  ctx.restore();
+  // bờ đất hai bên mép thế giới
+  const bankBottom = Math.max(yB, Math.min(h - bottom, yB + 3 * s));
+  const mud = ctx.createLinearGradient(0, oy, 0, bankBottom);
+  mud.addColorStop(0, ART.mud[0]); mud.addColorStop(1, ART.mud[1]);
+  ctx.fillStyle = mud;
+  ctx.fillRect(0, oy - 0.15 * s, xL, bankBottom - oy + 0.15 * s);
+  ctx.fillRect(xR, oy - 0.15 * s, w - xR, bankBottom - oy + 0.15 * s);
+  ctx.fillStyle = ART.grass;
+  ctx.fillRect(0, oy - 0.3 * s, xL, 0.2 * s); ctx.fillRect(xR, oy - 0.3 * s, w - xR, 0.2 * s);
+  // nước phù sa, mép trên theo sóng
+  const wg = ctx.createLinearGradient(0, oy, 0, yB);
+  wg.addColorStop(0, ART.water[0]); wg.addColorStop(0.12, ART.water[1]); wg.addColorStop(0.5, ART.water[2]); wg.addColorStop(1, ART.water[3]);
+  ctx.fillStyle = wg; ctx.beginPath(); ctx.moveTo(xL, yB);
+  for (let x = 0; x <= X + 1e-6; x += 0.5) ctx.lineTo(sx(x), oy + waveY(x, t, amp) * s);
+  ctx.lineTo(xR, yB); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.rect(xL, oy - 0.5 * s, xR - xL, yB - oy + 0.5 * s); ctx.clip();
+  // vệt nắng phản chiếu dưới mặt trời
+  const rx = Math.min(Math.max(sunX, xL), xR);
+  for (let i = 0; i < 7; i++) {
+    const yy = oy + (0.25 + i * 0.32) * s, ww = (2.2 - i * 0.25) * s * (0.7 + 0.3 * Math.sin(t * 2.1 + i * 1.7));
+    ctx.fillStyle = `rgba(255,232,190,${0.35 - i * 0.045})`;
+    ctx.fillRect(rx - ww / 2 + Math.sin(t * 1.3 + i) * 0.3 * s, yy, ww, Math.max(1, 0.08 * s));
+  }
+  // tia nắng xiên xuống nước đục
+  for (let i = 0; i < 6; i++) {
+    const x0 = xL + ((i + 0.5) / 6) * (xR - xL) + Math.sin(t * 0.2 + i) * s, wR = (1.2 + (i % 3) * 0.6) * s;
+    const a = (0.07 * (0.6 + 0.4 * Math.sin(t * 0.7 + i * 2.1))).toFixed(3);
+    const len = D * 0.6 * s, dx = -len * 0.35;
+    const rg = ctx.createLinearGradient(0, oy, 0, oy + len);
+    rg.addColorStop(0, ART.ray + a + ")"); rg.addColorStop(1, ART.ray + "0)");
+    ctx.fillStyle = rg; ctx.beginPath();
+    ctx.moveTo(x0, oy); ctx.lineTo(x0 + wR, oy); ctx.lineTo(x0 + wR * 1.8 + dx, oy + len); ctx.lineTo(x0 + dx, oy + len); ctx.fill();
+  }
+  // hạt phù sa lơ lửng
+  SCENERY.silt.forEach((p) => {
+    const x = (((p.u * X + t * p.sp * 0.25) % X) + X) % X, d = p.v * D + Math.sin(t * p.sp + p.ph) * 0.4;
+    const r = p.r * Math.max(1, s * 0.12);
+    ctx.fillStyle = ART.silt + (0.28 - p.v * 0.18).toFixed(3) + ")"; ctx.fillRect(sx(x), sy(d), r, r);
+  });
+  // vạch độ sâu (mờ)
+  ctx.lineWidth = 1;
+  for (let d = 5; d <= D; d += 5) {
+    ctx.strokeStyle = "rgba(255,230,200,.07)"; ctx.beginPath(); ctx.moveTo(xL, sy(d)); ctx.lineTo(xR, sy(d)); ctx.stroke();
+    text(d + " m", xL + 4, sy(d) - 2, { size: 10, color: "rgba(255,230,200,.35)" });
+  }
+  // rong đáy đung đưa
+  ctx.strokeStyle = ART.weed; ctx.lineWidth = Math.max(1, 0.12 * s); ctx.lineCap = "round";
+  SCENERY.weeds.forEach((wd) => {
+    const b0 = sx(wd.u * X), sw = Math.sin(t * 1.1 + wd.ph) * 0.35 * s;
+    ctx.beginPath(); ctx.moveTo(b0, yB); ctx.quadraticCurveTo(b0 + sw * 0.3, yB - wd.h * 0.5 * s, b0 + sw, yB - wd.h * s); ctx.stroke();
+  });
+  ctx.restore();
+  // đáy bùn
+  ctx.fillStyle = mud; ctx.beginPath(); ctx.moveTo(xL, bankBottom);
+  for (let x = 0; x <= X + 1e-6; x += 1) ctx.lineTo(sx(x), yB - (0.15 + 0.12 * Math.sin(x * 0.7) + 0.08 * Math.sin(x * 2.3)) * s);
+  ctx.lineTo(xR, bankBottom); ctx.closePath(); ctx.fill();
+  // dừa nước gần ở hai bờ
+  nipa(sx(-1.1), oy - 0.2 * s, 3.2 * s, 7, Math.sin(t * 0.9) * 0.05, ART.nipaNear, ART.nipaVein);
+  nipa(sx(X + 1.1), oy - 0.2 * s, 3.0 * s, 7, Math.sin(t * 0.9 + 1.3) * 0.05, ART.nipaNear, ART.nipaVein);
+  nipa(sx(X + 0.4), oy - 0.1 * s, 2.0 * s, 5, Math.sin(t * 1.1 + 2.1) * 0.06, ART.nipaFar, ART.nipaVein);
+  artDock(v);
+}
+// lớp trước gather (vẽ sau thực thể): nước đục dần theo độ sâu + viền sáng mặt nước
+function artGatherFront(v) {
+  const { s, X, D, sx, sy, t, amp } = v;
+  const oy = sy(0), yB = sy(D);
+  const mg = ctx.createLinearGradient(0, oy, 0, yB);
+  mg.addColorStop(0, ART.murk + "0)"); mg.addColorStop(0.4, ART.murk + ".12)"); mg.addColorStop(1, ART.murk + ".38)");
+  ctx.fillStyle = mg; ctx.fillRect(sx(0), oy, X * s, yB - oy);
+  ctx.strokeStyle = ART.surfaceHi; ctx.lineWidth = Math.max(1.5, 0.12 * s); ctx.beginPath();
+  for (let x = 0; x <= X + 1e-6; x += 0.5) {
+    const y = oy + waveY(x, t, amp) * s;
+    if (x === 0) ctx.moveTo(sx(x), y); else ctx.lineTo(sx(x), y);
+  }
+  ctx.stroke();
+}
+// ===== ART (nhóm) END =====
+
 // ----- cảnh GATHER: nhìn ngang, x sang phải, d xuống -----
 function drawGather(w, h) {
   const meta = snap.meta || {};
@@ -136,23 +350,14 @@ function drawGather(w, h) {
   const s = Math.max(1, Math.min((w - 20) / (X + 4), (h - top - bottom) / (D + SKY + 1)));
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
-  // trời + nước
-  ctx.fillStyle = "#cfeaf5"; ctx.fillRect(0, top, w, SKY * s);
-  const g = ctx.createLinearGradient(0, oy, 0, sy(D));
-  g.addColorStop(0, "#49b0dc"); g.addColorStop(1, "#08243f");
-  ctx.fillStyle = g; ctx.fillRect(sx(0), oy, X * s, D * s);
-  ctx.strokeStyle = "#e9f7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(0), oy); ctx.lineTo(sx(X), oy); ctx.stroke();
-  // vạch độ sâu
-  for (let d = 5; d <= D; d += 5) {
-    ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx(0), sy(d)); ctx.lineTo(sx(X), sy(d)); ctx.stroke();
-    text(d + " m", sx(0) + 4, sy(d) - 2, { size: 10, color: "rgba(255,255,255,.4)" });
-  }
-  // bến
-  const dp = meta.dock_pos || [2, 0], dr = meta.dock_radius || 3;
-  ctx.fillStyle = "#8d6e4b"; ctx.fillRect(sx(dp[0] - 1.5), sy(-0.7), 3 * s, 0.9 * s);
-  ctx.fillStyle = "#b9503a"; ctx.beginPath(); ctx.moveTo(sx(dp[0] - 1.8), sy(-0.7)); ctx.lineTo(sx(dp[0]), sy(-2.4)); ctx.lineTo(sx(dp[0] + 1.8), sy(-0.7)); ctx.fill();
-  ctx.strokeStyle = "rgba(255,230,150,.7)"; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(sx(dp[0]), sy(dp[1]), dr * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-  text("Bến (E)", sx(dp[0]), sy(-2.8), { size: 11, align: "center", color: "#5a3a22" });
+  // nền: trời sớm, bờ dừa nước, nước phù sa, nhà bè (khối ART)
+  const art = {
+    w, h, top, bottom, s, X, D, sx, sy, meta,
+    t: (performance.now() / 1000) * (REDUCED_MOTION ? 0.25 : 1),
+    amp: REDUCED_MOTION ? 0.03 : 0.12,
+    camX: snap.player && snap.player.pos ? snap.player.pos[0] : X / 2,
+  };
+  artGatherBack(art);
   // nút hái
   (snap.nodes || []).forEach((n) => {
     const ready = n.ready !== false;
@@ -184,6 +389,7 @@ function drawGather(w, h) {
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * 0.9 * s, py + Math.sin(a) * 0.9 * s); ctx.stroke();
     }
   }
+  artGatherFront(art);
   // HUD trên
   text("⏱ " + fmtTime(snap.time_left_ticks), 14, 28, { size: 20 });
   if (p && p.oxygen_ticks !== undefined && p.oxygen_max_ticks) {
