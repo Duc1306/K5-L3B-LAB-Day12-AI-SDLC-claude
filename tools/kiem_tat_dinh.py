@@ -2,6 +2,7 @@
 
     python3 tools/kiem_tat_dinh.py --mode gather --seed 1 --ticks 600 [--inputs f.json] [--scenario s.json]
     python3 tools/kiem_tat_dinh.py --mode quan --seed 3 --ticks 10800 [--inventory kho.json]
+    python3 tools/kiem_tat_dinh.py --mode day --seed 1 --days 2 --ticks 44400
 
 Chạy qua `headless_cmd` trong game.contract.json (giống test hộp đen). Mã thoát: 0 trùng khớp,
 1 lệch (in dòng khác đầu tiên), 2 headless báo lỗi. Không ghi gì vào repo (dùng thư mục tạm).
@@ -43,15 +44,15 @@ def main(argv=None):
     p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])
     p.add_argument("--seed", required=True)
     p.add_argument("--ticks", required=True)
-    for opt in ("--scenario", "--inputs", "--inventory", "--snapshot-every"):
+    for opt in ("--scenario", "--inputs", "--inventory", "--snapshot-every", "--days"):
         p.add_argument(opt)
     a = p.parse_args(argv)
 
     extra = []
     for opt, val in (("--scenario", a.scenario), ("--inputs", a.inputs), ("--inventory", a.inventory),
-                     ("--snapshot-every", a.snapshot_every)):
+                     ("--snapshot-every", a.snapshot_every), ("--days", a.days)):
         if val:
-            extra += [opt, os.path.abspath(val) if opt != "--snapshot-every" else val]
+            extra += [opt, val if opt in ("--snapshot-every", "--days") else os.path.abspath(val)]
 
     with tempfile.TemporaryDirectory() as d:
         outs = []

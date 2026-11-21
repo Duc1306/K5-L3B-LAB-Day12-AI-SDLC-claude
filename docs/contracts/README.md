@@ -87,6 +87,18 @@ Dòng cuối `end`: `ticks`, `sim_tick`, `mode`, `state`, `reason` (`time`/`dock
 
 **Điểm** (mọi snapshot và `end`) = `earned + reputation_multiplier × floor(reputation)`, với `reputation_multiplier = 100` (`tuning.score`). Code ở `runner._common`.
 
+## 3b. Chế độ `day`, Shop, pause (v1.1)
+
+- **CLI:** `--mode day [--days 1..5]` (mặc định 1). Kho bàn giao trong bộ nhớ. `--inventory`/`--inventory-out` với `day` → mã 2.
+- **Vòng ngày:** `day_start` → `day_plan{dishes,ingredients}` → `phase_start` (gather) → `gather_end` → `phase_start` (quan, cùng tick) → `quan_end` → `phase_start` (shop, cùng tick) → `shop_end{reason: done|time}` → Ngày kế (cùng tick) hoặc kết thúc `days_complete`.
+- **Vỏ event** có thêm `day`. Event kết thúc mang pha cũ.
+- **Snapshot** mọi pha có thêm `day`, `day_plan`, `upgrades` (cấp đã mua), `active_upgrades` (cấp đang áp dụng). Snapshot Shop có `stock` (kho dư) và `time_left_ticks`.
+- **Dòng `end`** có thêm `days_completed`.
+- **Inputs:** thêm `pause`, `shop_done`, `attack`, `photo` (bool, chỉ xét cạnh lên) và `buy` (chuỗi, chỉ chạy tại frame khai báo).
+- **Event mới:** `paused`/`resumed` `{}`, `bought{upgrade,level,price,money}`, `buy_failed{action,reason}`.
+- **Pause:** khi dừng, `state: "paused"`; `sim_tick`, `phase_tick` và mọi timer đứng yên, chỉ `tick` tăng.
+- **Scenario `day`:** gồm `gather`, `quan` (mẫu cho mỗi Ngày; cấm `quan.stock`, `quan.reputation`) và `day{money,earned,reputation,upgrades,day_plan}`.
+
 ## 4. Giả định đã chốt
 Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`, luồng RNG `customer_dish`, làm tròn uy tín 6 chữ số, `paid` không kèm `customer_left`…) ghi ở [`docs/clarify.md`](../clarify.md) mục 1–6.
 
@@ -94,3 +106,4 @@ Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`
 | Ngày | Đổi gì | Lý do | Ai duyệt |
 |---|---|---|---|
 | 2026-11-21 | Viết đầy đủ hợp đồng v1.0 từ PRD-0 và code ở tag `phase-1`. Hành vi không đổi. | AC-P1-13 còn thiếu | (cả nhóm xác nhận) |
+| 2026-11-21 | Thêm mục 3b: `day`, Shop, pause theo Test Contract v1.1. | TICKET-02 | (cả nhóm xác nhận) |

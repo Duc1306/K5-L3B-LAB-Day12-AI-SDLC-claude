@@ -38,16 +38,22 @@ def _check_ids(name, arr):
 
 def load_scenario(path, mode: str, tuning: dict) -> dict:
     if path is None:
-        return {}
+        return _load_day({}, tuning) if mode == "day" else {}
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError) as e:
         raise BadInput(f"không đọc được scenario {path}: {e}")
-    if not isinstance(data, dict) or not set(data) <= {"gather", "quan"}:
-        raise BadInput("scenario chỉ được có khối 'gather' hoặc 'quan'")
+    if mode == "day":
+        return _load_day(data, tuning)
+    if not isinstance(data, dict) or not set(data) <= {"gather", "quan", "day"}:
+        raise BadInput("scenario chỉ được có khối 'gather', 'quan' hoặc 'day'")
     if set(data) - {mode}:
         raise BadInput(f"khối sai mode: chạy --mode {mode} chỉ nhận khối '{mode}'")
+    return _load_block(data, mode, tuning)
+
+
+def _load_block(data, mode, tuning) -> dict:
     block = data.get(mode, {})
     if not isinstance(block, dict):
         raise BadInput(f"khối {mode} phải là object")
@@ -65,6 +71,71 @@ def load_scenario(path, mode: str, tuning: dict) -> dict:
     else:
         _validate_quan(block, tuning)
     return block
+
+
+# --- chế độ `day` (Test Contract v1.1 mục 4.3) ----------------------------------------
+DAY_KEYS = {"money", "earned", "reputation", "upgrades", "day_plan"}
+
+
+def _load_day(data, tuning) -> dict:
+    """`day` nhận `gather`, `quan` làm mẫu khởi tạo mỗi Ngày và khối `day` dựng trạng thái xuyên Ngày.
+
+    Trả {"day": {...}, "gather": {...}, "quan": {...}} (khối vắng là {}). Kho/khách/bếp của mẫu quán được
+    kiểm trên kho thực lúc mở quán (QuanSim), không kiểm được ở đây.
+    """
+    if not isinstance(data, dict) or not set(data) <= {"gather", "quan", "day"}:
+        raise BadInput("scenario chỉ được có khối 'gather', 'quan' hoặc 'day'")
+    out = {"gather": _load_block(data, "gather", tuning), "quan": _load_block(data, "quan", tuning)}
+    for key in ("stock", "reputation"):
+        if key in out["quan"]:
+            raise BadInput(f"không được khai quan.{key} khi chạy day (dùng gather.hold / day.reputation)")
+    out["day"] = _validate_day(data.get("day", {}), tuning)
+    return out
+
+
+def _validate_day(d, tuning) -> dict:
+    from .sim.plan import check_entry  # tránh import vòng khi nạp module
+
+    if not isinstance(d, dict):
+        raise BadInput("khối day phải là object")
+    extra = set(d) - DAY_KEYS
+    if extra:
+        raise BadInput(f"trường lạ/chưa hỗ trợ trong day: {sorted(extra)}")
+    for key in ("money", "earned"):
+        if key in d:
+            _nonneg_int(f"day.{key}", d[key])
+    money, earned = d.get("money", 0), d.get("earned", 0)
+    if money > 0 and "earned" not in d:
+        raise BadInput("có tiền đầu kỳ thì phải khai cả day.money và day.earned")
+    if money > earned:
+        raise BadInput("cần 0 ≤ day.money ≤ day.earned")
+    q = tuning["quan"]
+    if "reputation" in d:
+        r = d["reputation"]
+        if not _num(r) or not (q["reputation_min"] <= r <= q["reputation_max"]):
+            raise BadInput(f"day.reputation phải trong [{q['reputation_min']}, {q['reputation_max']}]")
+    shop_ups = tuning["shop"]["upgrades"]
+    ups = d.get("upgrades", {})
+    if not isinstance(ups, dict):
+        raise BadInput("day.upgrades phải là map id nâng cấp -> cấp")
+    for k, lv in ups.items():
+        if k not in shop_ups:
+            raise BadInput(f"day.upgrades: nâng cấp lạ/chưa bật {k!r}")
+        if isinstance(lv, bool) or not isinstance(lv, int) or not (0 <= lv <= len(shop_ups[k])):
+            raise BadInput(f"day.upgrades.{k} phải là số nguyên trong [0, {len(shop_ups[k])}]")
+    plan = {}
+    if "day_plan" in d:
+        if not isinstance(d["day_plan"], list):
+            raise BadInput("day.day_plan phải là mảng {day, dishes, ingredients?}")
+        for e in d["day_plan"]:
+            n = e.get("day") if isinstance(e, dict) else None
+            if isinstance(n, bool) or not isinstance(n, int) or not (1 <= n <= 5) or n in plan:
+                raise BadInput("day.day_plan: mỗi mục cần day duy nhất trong 1..5")
+            if set(e) - {"day", "dishes", "ingredients"}:
+                raise BadInput(f"day.day_plan[{n}]: trường lạ {sorted(set(e) - {'day', 'dishes', 'ingredients'})}")
+            plan[n] = check_entry(f"day.day_plan[{n}]", e, tuning["menu"])
+    return {"money": money, "earned": earned, "reputation": d.get("reputation", q["reputation_initial"]),
+            "upgrades": dict(ups), "day_plan": plan}
 
 
 def _num(v):

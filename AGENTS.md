@@ -5,6 +5,8 @@
 ## Lệnh
 - Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
 - Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
+- Headless cả vòng ngày (v1.1): `python3 -m chonoi.headless --mode day --seed 1 --days 2 --ticks 44400 --out day.jsonl` (một Ngày không pause = 22.200 tick). Luật ở `chonoi/sim/day.py` + `chonoi/sim/shop.py`; pause xử lý chung trong `runner.Session`.
+- Khung đã sửa ở P2 (lý do: Test Contract v1.1): `runner.py` (pause, `sim_tick`/`phase_tick` thật, event `day`, `days_completed`), `headless.py` (`--days`, cho phép `day`), `inputs.py` (`pause`, `shop_done`, `attack`, `photo`, `buy`), `scenario.py` (khối `day`).
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R, H nhật ký)
 - Chơi liền mạch sáng → tối → sáng ngày mới… (một tiến trình, kho qua file đúng mục G; chưa phải `--mode day` của Phase 2): `python3 -m chonoi.ngay_dem [--so-ngay N] [--nghi 4] [--port 8000]`
 - Windows: đặt `PYTHONIOENCODING=utf-8` trước khi chạy live, nếu không máy chủ lỗi khi in tiếng Việt.
