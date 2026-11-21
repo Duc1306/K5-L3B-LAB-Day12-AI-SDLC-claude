@@ -1,0 +1,5 @@
+1 cook_started {"stove_id": "B1", "order_id": "C1", "dish_id": "ca_loc_nuong_trui", "items": [{"id": "I1", "kind": "ca_loc", "fresh": 99.996}], "base_price": 59}
+361 dish_ready {"stove_id": "B1", "order_id": "C1", "dish_id": "ca_loc_nuong_trui"}
+1562 dish_burnt {"stove_id": "B1", "order_id": "C1", "dish_id": "ca_loc_nuong_trui", "order_status": "reserved"}
+snapshot t=1560: B1 ready ready_ticks=1199 | C1 assigned reserved=[] base_price=59
+snapshot t=1570: B1 idle ready_ticks=0 | C1 reserved reserved=['I2'] base_price=None
