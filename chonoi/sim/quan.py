@@ -10,6 +10,9 @@ Luật theo PRD-0, Test Contract mục F "Quán" (một bước):
      trừ uy tín); hết ca thì trả/rời với `closing` rồi `quan_end`.
   5. Còn giờ: lượt khách theo lịch (`customer_arrived` / `no_dish`).
 
+Phase 2 (v1.1): 2 bếp / 4 bàn / 6 món đều là dữ liệu trong game.contract.json. Trong chế độ `day`,
+`plan_dishes` giới hạn món khách được gọi theo kế hoạch Ngày.
+
 Kho `stock` là tồn VẬT LÝ (gồm cả phần khách đã giữ); khả dụng = tồn − tổng `reserved`.
 Mọi số đọc từ game.contract.json; ngẫu nhiên chọn món qua luồng `Streams("customer_dish")`.
 """
@@ -34,10 +37,12 @@ class QuanSim:
     mode = "quan"
     phase = "quan"
 
-    def __init__(self, tuning, scenario, streams, ids, inventory=None):
+    def __init__(self, tuning, scenario, streams, ids, inventory=None, plan_dishes=None):
         t = tuning["quan"]
         self.t = t
         self.menu = tuning["menu"]
+        # Chế độ `day`: chỉ các món trong kế hoạch Ngày (v1.1 mục 2). Quán chạy riêng dùng cả thực đơn.
+        self.plan_dishes = sorted(plan_dishes) if plan_dishes is not None else None
         self.rng = streams
         self.ids = ids
         self.patience_full = _ticks(t["patience_s"])
@@ -128,6 +133,8 @@ class QuanSim:
         reserved_total = {}
         for c in self.customers:
             cid, st, status = c["id"], c["state"], c["order_status"]
+            if self.plan_dishes is not None and c["dish_id"] not in self.plan_dishes:
+                raise BadInput(f"customers.{cid}: món {c['dish_id']} không thuộc kế hoạch Ngày")
             if c["patience_ticks_left"] > self.patience_full or c["eat_ticks_left"] > self.eat_full:
                 raise BadInput(f"customers.{cid}: bộ đếm vượt mức đầy")
             if status in ("assigned", "unfulfillable", "served") and c["reserved"]:
@@ -349,7 +356,9 @@ class QuanSim:
         if not free:
             return
         table = free[0]
-        options = [d for d in sorted(self.menu) if self._can_reserve(self.menu[d]["recipe"])]
+        # lọc theo kế hoạch (nếu có) TRƯỚC, rồi theo nguyên liệu khả dụng (v1.1 mục 4.5 "Quán")
+        menu_ids = self.plan_dishes if self.plan_dishes is not None else sorted(self.menu)
+        options = [d for d in menu_ids if self._can_reserve(self.menu[d]["recipe"])]
         if not options:
             events.append(("no_dish", {}))
             return

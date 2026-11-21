@@ -896,8 +896,9 @@ const NIGHT = {
   straw: "#d9c48f", strawDark: "#a8925c", darkness: 0.5, K: 0.62,
 };
 const dishIdOf = (d) => (typeof d === "string" ? d : d && d.dish_id) || null;
-const DISH_NAME = { ca_loc_nuong_trui: "cá lóc nướng trui", goi_bong_sung: "gỏi bông súng", lau_ca_linh_dien_dien: "lẩu cá linh bông điên điển" };
-const DISH_SHORT = { ca_loc_nuong_trui: "Cá nướng", goi_bong_sung: "Gỏi", lau_ca_linh_dien_dien: "Lẩu" };
+const DISH_NAME = { ca_loc_nuong_trui: "cá lóc nướng trui", goi_bong_sung: "gỏi bông súng", lau_ca_linh_dien_dien: "lẩu cá linh bông điên điển",
+  canh_chua_ca_loc: "canh chua cá lóc bông điên điển", ca_keo_nuong: "cá kèo nướng muối ớt", lau_mam: "lẩu mắm miền Tây" };
+const DISH_SHORT = { ca_loc_nuong_trui: "Cá nướng", goi_bong_sung: "Gỏi", lau_ca_linh_dien_dien: "Lẩu", canh_chua_ca_loc: "Canh chua", ca_keo_nuong: "Cá kèo", lau_mam: "Lẩu mắm" };
 // thoại giọng Nam Bộ theo sự kiện; {mon} = tên món, {xung} = cách khách tự xưng
 const LINES = {
   customer_arrived: ["Cho {xung} một phần {mon} nghen con!", "Con ơi, có {mon} hông?", "Bữa nay ăn {mon} cho đã!"],
