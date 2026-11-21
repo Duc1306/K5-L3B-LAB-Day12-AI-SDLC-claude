@@ -28,7 +28,7 @@ class StandardData(unittest.TestCase):
                          [("T1", [9, 2]), ("T2", [13, 2]), ("T3", [9, 6]), ("T4", [13, 6])])
         self.assertEqual((Q["first_customer_tick"], int(Q["customer_interval_s"] * 60), Q["patience_s"], Q["eat_s"]),
                          (120, 900, 60, 10))
-        self.assertIsNone(Q["burn_s"])
+        self.assertEqual(Q["burn_s"], 20)  # mở rộng Cháy món đã bật (lõi: null), xem test_ext_burn.py
 
     def test_thuc_don_6_mon(self):
         want = {
