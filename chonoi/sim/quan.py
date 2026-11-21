@@ -4,7 +4,10 @@ Luật theo PRD-0, Test Contract mục F "Quán" (một bước):
   1. Đồng hồ, timer ca, nấu, ăn, kiên nhẫn; `ready_ticks` chỉ tăng cho món đã ready ở ĐẦU bước.
   1b. (v1.2) Hao tươi kho thô 0.25/s (kể cả hàng đang giữ), phát hết `spoiled` theo id, RỒI xử lý các đơn
      có phần giữ vừa ươn theo (order_tick, id bàn): nhả toàn bộ, thử giữ lại đúng một lần, thiếu -> unfulfillable.
-  2. Bếp theo id: nấu xong -> ready (`dish_ready`), `ready_ticks = 0`. `burn_s` là null (không cháy).
+  2. Bếp theo id: nấu xong -> ready (`dish_ready`), `ready_ticks = 0`. Lõi: `burn_s` null (không cháy).
+     Mở rộng Cháy món (`burn`, v1.1 mục 3): món ready có `ready_ticks > burn_s × 60` thì bỏ món (nguyên liệu đã
+     tiêu lúc nấu, không hoàn), bếp idle ngay, thử giữ lại cho đơn ngay: đủ -> `reserved`, thiếu ->
+     `unfulfillable` (khách vẫn chờ tới hết kiên nhẫn), rồi phát `dish_burnt`. Đúng `burn_s × 60` tick vẫn bưng được.
   3. Di chuyển, rồi tối đa MỘT interact chọn theo (khoảng cách, bếp trước bàn, id):
      bếp idle nấu đơn reserved cũ nhất (`cook_started`), bếp ready giao món cho tay trống (`dish_picked`),
      bàn nhận đúng món (`served`, chốt boa).
@@ -55,6 +58,8 @@ class QuanSim:
         self.patience_full = _ticks(t["patience_s"])
         self.eat_full = _ticks(t["eat_s"])
         self.interval_ticks = _ticks(t["customer_interval_s"])
+        # mở rộng Cháy món: None = lõi (không cháy); contract.validate_extensions đảm bảo burn_s khớp `extensions`
+        self.burn_ticks = _ticks(t["burn_s"]) if t.get("burn_s") is not None else None
         p = scenario.get("player", {})
         self.pos = [float(c) for c in p.get("pos", t["start_pos"])]
         self.vel = [float(c) for c in p.get("vel", [0.0, 0.0])]
@@ -270,11 +275,13 @@ class QuanSim:
         newly = self.fresh.decay(self.stock, self.fresh.quan_decay_u, "stock", events)
         if newly:
             self._rereserve_spoiled(newly)
-        # 2. bếp theo id: nấu xong -> ready
+        # 2. bếp theo id: nấu xong -> ready; nếu bật Cháy món, món chín để quá burn_ticks thì cháy (trước di chuyển)
         for s in self.stoves:
             if s["state"] == "cooking" and s["cook_ticks_left"] == 0:
                 s["state"], s["ready_ticks"] = "ready", 0
                 events.append(("dish_ready", self._dish_data(s)))
+            elif self.burn_ticks is not None and s["state"] == "ready" and s["ready_ticks"] > self.burn_ticks:
+                self._burn(s, events)
         # 3. di chuyển rồi tối đa một interact
         self._move(inp)
         if inp.pressed("interact"):
@@ -325,6 +332,20 @@ class QuanSim:
 
     def _dish_data(self, s):
         return {"stove_id": s["id"], "order_id": s["dish"]["order_id"], "dish_id": s["dish"]["dish_id"]}
+
+    def _burn(self, s, events):
+        """Mở rộng Cháy món: bỏ món, bếp rảnh ngay, giữ lại cho đơn đúng một lần, rồi phát `dish_burnt`."""
+        data = self._dish_data(s)
+        s.update(state="idle", dish=None, cook_ticks_left=0, ready_ticks=0)
+        c = next((c for c in self.customers if c["id"] == data["order_id"]), None)
+        if c is not None:  # món trên bếp luôn có khách (khách rời thì _drop_dish_of đã dọn bếp)
+            c["base_price"] = None  # giá chốt lại khi nấu lần sau (clarify #1: null tới cook_started)
+            picked = self._pick(self.menu[c["dish_id"]]["recipe"])
+            if picked is None:
+                c["order_status"], c["reserved"] = "unfulfillable", []
+            else:
+                c["order_status"], c["reserved"] = "reserved", picked
+        events.append(("dish_burnt", dict(data, order_status=c["order_status"] if c is not None else None)))
 
     def _use_stove(self, s, events):
         if s["state"] == "idle":
