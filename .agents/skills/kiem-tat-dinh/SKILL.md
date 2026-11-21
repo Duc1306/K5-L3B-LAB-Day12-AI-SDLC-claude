@@ -43,7 +43,7 @@ kể cả khi luật đúng. Skill này giúp bắt lỗi đó trước khi push
 | Lệch ngẫu nhiên giữa các máy | `time.time()`, `datetime.now()`, `id()`, `hash()` của chuỗi | bỏ; mọi thời gian tính theo tick |
 | Tọa độ lệch chữ số cuối | làm tròn trong luật thay vì lúc xuất | tính bằng giá trị chính xác, chỉ `jsonl.py` làm tròn |
 | File kho lệch | ghi thứ tự khóa không sắp xếp | dùng `inventory.write_inventory` |
-| `day` lệch từ Ngày 2 | dựng Streams/IdAllocator mới mỗi Ngày, hoặc duyệt dict cấp nâng cấp không sắp | một Streams + một IdAllocator cho cả lượt; sắp map theo khóa |
+| `day` lệch từ Ngày 2 | dựng `Streams` mới mỗi Ngày, cấp id cá thể `I` lại từ đầu, hoặc duyệt dict cấp nâng cấp không sắp | MỘT `Streams(seed)` cho cả lượt; allocator cá thể `I` dùng chung xuyên Ngày (còn `F`/`C` cấp lại mỗi buổi, clarify #17); sắp map theo khóa |
 | Độ tươi lệch ở ngưỡng 30 | cộng/trừ float trực tiếp | dùng `chonoi/sim/fresh.py` (đơn vị nguyên 1/240) |
 
 ## 5. Không được làm
