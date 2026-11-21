@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Thêm — mở rộng Cháy món (`burn`)
+- Manifest khai `"extensions": ["burn"]` và `tuning.quan.burn_s: 20`. `chonoi/contract.py` kiểm hai chỗ khớp nhau, từ chối mã mở rộng chưa làm.
+- Món chín để quá 1200 tick (20 s) trên bếp thì cháy: bỏ món, bếp rảnh ngay, giữ lại nguyên liệu cho đơn (`reserved`) hoặc `unfulfillable` nếu thiếu. Event `dish_burnt {stove_id, order_id, dish_id, order_status}`. Đúng 1200 tick vẫn bưng được.
+- UI: khói, chữ "cháy món!" ở bếp và thoại của Út Sen khi có `dish_burnt`.
+- `tests/test_ext_burn.py` (11 test), bằng chứng ở `docs/proof/ext-burn/`.
+
+### Đổi
+- `TEAM.md`: nhóm 5 người; `team: "claude"`, `team_size: 5`.
+
 ## [phase-3] — contract v1.2 "Mùa Nước Nổi" (TICKET-03)
 
 ### BREAKING

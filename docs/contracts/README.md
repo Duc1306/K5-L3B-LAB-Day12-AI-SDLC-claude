@@ -87,6 +87,7 @@ Dòng event: `{"type":"event","tick":k+1,"phase":"gather|quan","name":…,"data"
 | `no_dish` | `sim/quan` | `{}` (có bàn trống nhưng kho không đủ món nào) | UI |
 | `cook_started` | `sim/quan` | `stove_id`, `order_id`, `dish_id`, `items[]` (**v1.2: cá thể sắp theo kind rồi id**), `base_price` (giá đã chốt theo tươi) | UI (khói bếp) |
 | `dish_ready` / `dish_picked` | `sim/quan` | `stove_id`, `order_id`, `dish_id` | UI |
+| `dish_burnt` (mở rộng `burn`) | `sim/quan` | `stove_id`, `order_id`, `dish_id`, `order_status` sau xử lý (`reserved` nếu giữ lại được, `unfulfillable` nếu thiếu) | UI (khói, chữ "cháy món!"), test |
 | `served` | `sim/quan` | `order_id`, `table_id`, `dish_id`, `patience_ticks_left`, `base_price`, `tip` | UI, test |
 | `paid` | `sim/quan` | `order_id`, `table_id`, `base_price`, `tip`, `amount`, `reason` (`finished_eating`/`closing`) | UI (tiền nổi), test |
 | `customer_left` | `sim/quan` | `order_id`, `table_id`, `reason` (`patience`/`closing`), `reputation` | UI (thoại bỏ về), test |
@@ -95,6 +96,20 @@ Dòng event: `{"type":"event","tick":k+1,"phase":"gather|quan","name":…,"data"
 Dòng cuối `end`: `ticks`, `sim_tick`, `mode`, `state`, `reason` (`time`/`docked`/`fainted`/`tick_limit`), `money`, `earned`, `reputation`, `score`.
 
 **Điểm** (mọi snapshot và `end`) = `earned + reputation_multiplier × floor(reputation)`, với `reputation_multiplier = 100` (`tuning.score`). Code ở `runner._common`.
+
+### 3.1 Mở rộng đã bật: Cháy món (`burn`)
+
+Manifest: `"extensions": ["burn"]` ở gốc, `tuning.quan.burn_s: 20`. `chonoi/contract.py` (`validate_extensions`) bắt
+buộc hai chỗ này khớp nhau và từ chối mã mở rộng chưa làm (mã 2). Luật ở `chonoi/sim/quan.py` (`_burn`), test ở
+`tests/test_ext_burn.py`.
+
+| Quy tắc | Chi tiết |
+|---|---|
+| Khi nào cháy | Bước 2 của quán, theo id bếp, **trước** di chuyển và tương tác: bếp `ready` có `ready_ticks > burn_s × 60` (1200). Đúng 1200 vẫn bưng được. |
+| Hậu quả | Bỏ món, nguyên liệu đã tiêu lúc nấu không hoàn, bếp `idle` ngay. Đơn của món: `base_price` về `null`, thử giữ lại ngay (tươi nhất, hòa theo id): đủ → `reserved`, thiếu → `unfulfillable`, khách vẫn chờ tới hết kiên nhẫn. |
+| Không cháy | Món trên tay; món đang nấu. |
+| Scenario | `quan.stoves[].ready_ticks` dựng tuổi món chín (đã có từ v1.0). |
+| Snapshot | Không thêm trường. UI thấy qua event `dish_burnt` và bếp chuyển `idle`. |
 
 ## 3b. Chế độ `day`, Shop, pause (v1.1)
 
@@ -118,3 +133,4 @@ Các chỗ PRD mơ hồ (giá/boa `null` trước khi chốt, họ id khách `C`
 | 2026-11-21 | v1.1 (Phase 2): số chuẩn, 3 loài cá, Cá Sấu, 2 bếp/4 bàn/6 món, `day_plan`, `shop`, `day`/Shop/pause. | TICKET-02 | Duc1306, congvt |
 | 2026-11-21 | **v1.2 (Phase 3, breaking)**: kho đếm → kho cá thể `{id,kind,fresh}`, `tuning.freshness`, event `spoiled`, giữ chỗ theo id, giá theo tươi, `lost`/`items` là cá thể. | TICKET-03, [ADR-0001](../adr/0001-kho-ca-the-v12.md) | Duc1306 (+ TADIZB) |
 | 2026-11-21 | Thêm mục 3b: `day`, Shop, pause theo Test Contract v1.1. | TICKET-02 | (cả nhóm xác nhận) |
+| 2026-11-21 | Mở rộng **Cháy món** (`extensions: ["burn"]`, `burn_s: 20`, event `dish_burnt`). Không đổi schema kho, không đổi luật lõi khi `burn_s` null. | Nhóm lên 5 người: TICKET-02/03 yêu cầu ≥ 1 mục mở rộng | hadatttt |

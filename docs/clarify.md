@@ -31,3 +31,7 @@
 | 27 | 2026-11-21 P3 | Thứ tự id trong `customers[].reserved` ở snapshot? | Sắp theo id (`I2` trước `I10`) cho ổn định; lúc chọn thì theo kind rồi tươi nhất/id nhỏ. | Duc1306 + TADIZB |
 | 28 | 2026-11-21 P3 | Cá thể của mẫu `gather.hold` trong `day`, Ngày ≥ 2 có fresh gì? | Giữ kind/fresh ban đầu của mẫu, cấp id mới từ allocator chung (Ngày 1 giữ nguyên id mẫu và các id sau nối tiếp hậu tố lớn nhất). | Duc1306 + TADIZB |
 | 29 | 2026-11-21 P3 | File kho ghi `fresh` dạng gì? | Số nguyên nếu chẵn (`100`, `30`), không thì float gần nhất của giá trị chính xác (repr ngắn nhất, đọc lại ra đúng đơn vị). | Duc1306 + TADIZB |
+| 30 | 2026-11-21 P4 | Cháy món (`burn`): món cháy thì `base_price` đã chốt lúc nấu của đơn còn giữ không? | Về `null`, chốt lại ở lần `cook_started` sau (giống clarify #1: `null` tới khi nấu). Đơn `unfulfillable` nên không còn giá. | hadatttt |
+| 31 | 2026-11-21 P4 | Cháy món: hai bếp cùng cháy một bước, đơn nào được giữ lại nguyên liệu trước? | Theo id bếp (TICKET-02 mục 4.5: "xét món chín/cháy theo id bếp"), không theo `order_tick`. | hadatttt |
+| 32 | 2026-11-21 P4 | Cháy món: món đã bưng lên tay có cháy không? | Không. Luật chỉ nói `ready_ticks` của bếp; món trên tay không có bộ đếm. | hadatttt |
+| 33 | 2026-11-21 P4 | Cháy món: cháy rồi đứng ở bếp bấm E cùng bước thì sao? | Cháy xét trước tương tác nên không bưng được; nếu giữ lại đủ hàng (`reserved`) thì tương tác nấu lại ngay trong bước đó. | hadatttt |
