@@ -841,6 +841,7 @@ function hudKho(w, h, title, items, t) {
     ctx.strokeStyle = "rgba(255,220,160,.25)"; ctx.lineWidth = 1.5; ctx.stroke();
     drawKindIcon(it.kind, x + slot / 2, y + sh * 0.4, slot * 0.62, t);
     hudText((KIND_NAME[it.kind] || it.kind) + " x" + it.n, x + slot / 2, y + sh - 12, Math.max(11, Math.min(14, slot / 6.5)), { align: "center" });
+    if (it.held) hudText("giữ " + it.held, x + slot - 6, y + 12, 11, { align: "right", color: "#ffcf8a" });
   });
 }
 // ô hành động dưới-phải: tiêu đề + nội dung + gợi ý phím
@@ -1395,10 +1396,12 @@ function hudQuan(w, h, v, pp) {
   hudStats([
     { icon: iconClock, text: fmtTime(snap.time_left_ticks) },
     { icon: iconMoney, text: (snap.money ?? 0) + "k" },
-    { icon: (x, y, r) => iconStar(x, y, r), text: (snap.reputation ?? 0).toFixed(1) },
+    { icon: (x, y, r) => iconStar(x, y, r), text: (snap.reputation ?? 0).toFixed(1) + "  ·  điểm " + (snap.score ?? 0), w: 250 },
   ]);
-  const stock = snap.stock || {};
-  hudKho(w, h, "Kho", Object.keys(stock).sort().map((k) => ({ kind: k, n: stock[k] })), t);
+  // PRD: HUD tối hiện KHO KHẢ DỤNG = tồn vật lý (snap.stock, gồm phần giữ chỗ) − phần khách đã giữ (đơn reserved)
+  const stock = snap.stock || {}, held = {};
+  (snap.customers || []).forEach((c) => { if (c.order_status === "reserved" && c.reserved) Object.keys(c.reserved).forEach((k) => (held[k] = (held[k] || 0) + c.reserved[k])); });
+  hudKho(w, h, "Kho khả dụng", Object.keys(stock).sort().map((k) => ({ kind: k, n: Math.max(0, stock[k] - (held[k] || 0)), held: held[k] || 0 })), t);
   const hand = snap.hand ? dishIdOf(snap.hand) : null;
   let hint = hand ? "Mang ra bàn" : "Chờ khách gọi món";
   const R = meta.interact_radius || 1.5, p = snap.player && snap.player.pos;

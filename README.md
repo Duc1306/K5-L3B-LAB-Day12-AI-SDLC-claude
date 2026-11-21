@@ -27,6 +27,17 @@ Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headl
 
 Ngoài phần đề yêu cầu, nhóm được **thêm** nhân vật, loài cá/cây, sinh vật, món, bản đồ, cơ chế, câu chuyện, đồ họa, âm nhạc… với ba điều kiện: **không phá phần cố định** (tắt ở headless), ghi mục **"Sáng tạo của nhóm"** trong README của nhóm, và **làm lõi đúng trước**.
 
+## Sáng tạo của nhóm
+
+Toàn bộ phần dưới đây là **lớp hiển thị trên trình duyệt** (`chonoi/web/index.html`, khối `ART (nhóm)`) và một script chơi thử; chỉ đọc snapshot, **không đổi** `chonoi/sim/*`, headless, `game.contract.json` hay `docs/contracts/`. Hướng dẫn cho agent: skill [`.agents/skills/thiet-ke-do-hoa`](.agents/skills/thiet-ke-do-hoa/SKILL.md).
+
+- **Buổi sáng:** sông phù sa ánh hồng, bờ dừa nước, nhà sàn xa, nhà bè ở bến; camera bám Út Sen (bản đồ nhỏ góc phải); Út Sen áo bà ba, khăn rằn ca rô, kính lặn tự chế, giỏ đeo hông phồng theo đồ hái; cá theo loài (cá linh vẽ thành đàn); bong bóng thở, viền tối khi sắp hết oxy.
+- **Buổi tối:** quán trên nhà bè vẽ góc chéo 3/4 (bếp cà ràng, quầy, bàn ván, lan can tre), đèn dây vàng, khói bếp, ánh sáng đêm; bong bóng gọi món + thanh kiên nhẫn; thoại giọng Nam Bộ theo sự kiện (`customer_arrived`, `served`, `paid`, `customer_left`…).
+- **HUD bảng gỗ** cho cả hai buổi: thời gian, oxy, Máu, giỏ (sáng); tiền, uy tín, điểm, **kho khả dụng** (tồn − phần khách giữ), món trên tay, gợi ý phím (tối). Phím **H** bật nhật ký sự kiện.
+- **Chơi nối ngày → đêm (thử):** `python3 tools/choi_ngay_dem.py` chạy gather rồi tự mở quán với file kho vừa ghi (đúng cơ chế 2 tiến trình của Phase 1), có màn chuyển hoàng hôn. Chưa phải `--mode day`.
+
+**Bằng chứng lõi vẫn đúng:** `PYTHONPATH=tests:. python3 -m unittest discover -s tests` → 77 test OK; smoke hộp đen ở Test Contract (gather `dock.json` → quán) cho `stock {"bong_sung":2,"ca_loc":1}` ở tick 0, khớp `gather_end.inventory`; `git diff main -- chonoi/sim chonoi/headless.py chonoi/live.py game.contract.json` trống. Ảnh: `docs/proof/art-*.png`.
+
 ## Lịch 3 giờ
 
 | Mốc | Phase | Hạn tag |
